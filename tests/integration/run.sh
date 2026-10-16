@@ -2,7 +2,7 @@
 # Integration tests on disposable Docker-in-Docker nodes. Nothing here touches real hosts.
 #
 #   ./run.sh test     full run: up, deploy, verify, idempotence, rolling update, down
-#   ./run.sh up|deploy|verify|idempotence|dryrun|guard|update|down|shell <node>
+#   ./run.sh up|deploy|verify|idempotence|dryrun|addnode|maintenance|failpath|guard|update|down|shell <node>
 #
 # Env: KEEP=1 keeps the nodes after `test`.
 #      SEAWEED_TEST_LARGE_DISK=1 tests the official large_disk build instead of the regular one.
@@ -12,7 +12,8 @@ set -euo pipefail
 cd "$(dirname "$0")"
 HERE=$PWD
 WORK=$HERE/.work
-NODES=(node01 node02 node03)
+NODES=(node01 node02 node03 node04)   # node04 is the "new hardware" added with add_node
+MASTER_NODES=(node01 node02 node03)
 if [[ ${SEAWEED_TEST_LARGE_DISK:-0} == 1 ]]; then
     TAG_SUFFIX=_large_disk
     EXTRA_VARS=(-e seaweed_large_disk=true)
@@ -67,6 +68,7 @@ up() {
         until docker exec "swfs-test-$n" docker info >/dev/null 2>&1; do printf '.'; sleep 2; done
         echo ok
     done
+    echo "  node OS: $(docker exec swfs-test-node01 sh -c '. /etc/os-release && echo "$PRETTY_NAME"'), $(docker exec swfs-test-node01 docker version --format '{{.Server.Version}}' | sed 's/^/docker /')"
     log "Loading $SEAWEED_TEST_IMAGE into the nodes as test-a / test-b (suffix: ${TAG_SUFFIX:-none})"
     docker image inspect "$SEAWEED_TEST_IMAGE" >/dev/null 2>&1 || docker pull "$SEAWEED_TEST_IMAGE"
     for n in "${NODES[@]}"; do
@@ -126,7 +128,8 @@ verify_services() {
     [[ $(curl -sf "$filer/verify/$name") == "filer-$name" ]] || fail "filer read-back differs" || return 1
     [[ $(docker exec swfs-test-node01 docker exec postgres psql -U seaweedfs -d seaweedfs -tAc \
         "select count(*) from filemeta where name='$name'") == 1 ]] || fail "$name is not in the PostgreSQL filemeta table" || return 1
-    echo "  OK filer: write/read, metadata row found in PostgreSQL"
+    [[ $(curl -sf "http://172.29.14.14:8888/verify/$name") == "filer-$name" ]] || fail "the filer on the new node does not see the file written through the first filer" || return 1
+    echo "  OK filer: write/read, metadata row found in PostgreSQL, visible through the filer on the new node"
 
     # S3 gateway.
     # A fresh bucket per call: verify runs several times on the same cluster and creating an existing bucket is a 409.
@@ -140,7 +143,7 @@ verify_services() {
 idempotence() {
     log "Idempotence: second site.yml run must change nothing"
     local out
-    out=$(ansible-playbook "$COLLECTION.site" "${EXTRA_VARS[@]}" | tee /dev/stderr)
+    out=$(ansible-playbook "$COLLECTION.site" "${EXTRA_VARS[@]}" | tee >(cat >&2))
     if grep -E 'changed=[1-9]' <<<"$out" >/dev/null; then
         echo "FAIL: second run reported changes" >&2
         return 1
@@ -158,7 +161,7 @@ master_leader_node() {
 # The master that was the leader before the upgrade must have been restarted last.
 check_leader_last() {
     local leader=$1 n started latest="" latest_node=""
-    for n in "${NODES[@]}"; do
+    for n in "${MASTER_NODES[@]}"; do
         started=$(docker exec "swfs-test-$n" docker inspect -f '{{.State.StartedAt}}' "master${n#node}")
         echo "  master${n#node} restarted at $started$([[ $n == "$leader" ]] && echo '  <- leader before the upgrade')"
         if [[ -z $latest || $started > $latest ]]; then latest=$started; latest_node=$n; fi
@@ -198,15 +201,103 @@ dryrun_fresh() {
 dryrun_live() {
     log "Dry run (--check) on the live cluster: no changes for the same config, changes reported for a new version"
     local out
-    out=$(ansible-playbook "$COLLECTION.site" "${EXTRA_VARS[@]}" --check | tee /dev/stderr)
+    out=$(ansible-playbook "$COLLECTION.site" "${EXTRA_VARS[@]}" --check | tee >(cat >&2))
     if grep -E 'changed=[1-9]' <<<"$out" >/dev/null; then
         echo "FAIL: --check reported changes for an unchanged config" >&2
         return 1
     fi
-    out=$(ansible-playbook "$COLLECTION.site" "${EXTRA_VARS[@]}" -e seaweed_version=test-b --check | tee /dev/stderr)
+    out=$(ansible-playbook "$COLLECTION.site" "${EXTRA_VARS[@]}" -e seaweed_version=test-b --check | tee >(cat >&2))
     grep -E 'changed=[1-9]' <<<"$out" >/dev/null || { echo "FAIL: --check did not report the version change" >&2; return 1; }
     verify test-a
     echo "OK: --check reports changes without applying them"
+}
+
+# --- helpers for the maintenance mode, add_node and failure-path tests -------------------------------------
+VOLUME_SERVERS=(172.29.14.11:8081 172.29.14.11:8082 172.29.14.12:8081 172.29.14.12:8082 172.29.14.13:8081 172.29.14.13:8082
+                172.29.14.14:8081 172.29.14.14:8082)
+
+weed_shell() { docker exec -i swfs-test-node01 docker exec -i master01 weed shell -master=172.29.14.11:9333 2>&1; }
+
+# yes|no
+maintenance_state() {
+    weed_shell <<<"volumeServer.state -nodes $1" | sed -n 's/.*Maintenance mode: *//p' | head -1
+}
+
+# "<count> <volume server url>" for 60 write assignments
+assign_distribution() {
+    local i
+    for i in $(seq 1 60); do
+        curl -s "http://172.29.14.11:9333/dir/assign?count=1" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("url","none"))'
+    done | sort | uniq -c | sort -rn
+}
+
+deploy_partial() {
+    log "Deploy everything except new hardware (node04) and two aliases on an existing node (added later with add_node)"
+    ansible-playbook "$COLLECTION.site" "${EXTRA_VARS[@]}" --limit 'all:!node04:!volume03-dg02:!worker02-vacuum01'
+}
+
+add_nodes() {
+    local out
+    log "add_node without target_node must be rejected"
+    if out=$(ansible-playbook "$COLLECTION.add_node" "${EXTRA_VARS[@]}" 2>&1); then
+        fail "add_node ran without target_node" || return 1
+    fi
+    grep -q 'Pass the inventory alias' <<<"$out" || { tail -15 <<<"$out" >&2; fail "add_node failed for another reason" || return 1; }
+    echo "OK: add_node requires target_node"
+
+    log "add_node: add a volume server and a worker on an existing node"
+    ansible-playbook "$COLLECTION.add_node" "${EXTRA_VARS[@]}" -e 'target_node=volume03-dg02,worker02-vacuum01'
+
+    log "add_node: add a brand-new node (node04: filer, two volume servers, a worker) by its group name"
+    ansible-playbook "$COLLECTION.add_node" "${EXTRA_VARS[@]}" -e target_node=node04
+}
+
+# Maintenance mode must take a volume server out of the write rotation, and switching it off must bring it back.
+maintenance_effect() {
+    log "Maintenance mode: the server leaves the write rotation and returns afterwards"
+    local target before after i
+    target=$(assign_distribution | awk 'NR==1{print $2}')
+    before=$(assign_distribution | awk -v t="$target" '$2==t{print $1}')
+    [[ ${before:-0} -gt 0 ]] || fail "no writes are assigned to $target even without maintenance mode" || return 1
+    weed_shell <<<"lock; volumeServer.state -nodes $target -maintenanceOn; unlock" >/dev/null
+    [[ $(maintenance_state "$target") == yes ]] || fail "maintenance mode did not turn on for $target" || return 1
+    sleep 8
+    after=$(assign_distribution | awk -v t="$target" '$2==t{print $1}')
+    [[ ${after:-0} -eq 0 ]] || fail "$target still received $after of 60 writes in maintenance mode" || return 1
+    echo "  OK $target: $before of 60 writes before, 0 in maintenance mode"
+    weed_shell <<<"lock; volumeServer.state -nodes $target -maintenanceOff; unlock" >/dev/null
+    [[ $(maintenance_state "$target") == no ]] || fail "maintenance mode did not turn off for $target" || return 1
+    for i in $(seq 1 15); do
+        after=$(assign_distribution | awk -v t="$target" '$2==t{print $1}')
+        [[ ${after:-0} -gt 0 ]] && { echo "  OK $target is back in the write rotation ($after of 60)"; return 0; }
+        sleep 4
+    done
+    fail "$target did not return to the write rotation after maintenance mode" || return 1
+}
+
+# An upgrade that fails must stop the run at the first instance, leave the cluster serving, and be recoverable.
+failpath() {
+    log "Failure path: an upgrade to a missing image tag stops at the first volume server"
+    local out s hosts_run
+    if out=$(ansible-playbook "$COLLECTION.rolling_update" "${EXTRA_VARS[@]}" -e seaweed_version=no-such-tag -e target_group=volume 2>&1); then
+        fail "the upgrade to a missing tag succeeded" || return 1
+    fi
+    grep -q 'the rolling update is stopped' <<<"$out" || { tail -20 <<<"$out" >&2; fail "no stop message" || return 1; }
+    grep -q 'maintenanceOff' <<<"$out" || fail "the error message does not tell how to leave maintenance mode" || return 1
+    hosts_run=$(awk '/PLAY RECAP/{r=1;n=0;next} r&&/ : ok=/{n++} END{print n}' <<<"$out")
+    [[ $hosts_run == 1 ]] || fail "$hosts_run hosts were touched, expected only the first" || return 1
+    echo "  OK stopped at the first volume server (the others were not touched)"
+    verify test-a
+    [[ $(maintenance_state "${VOLUME_SERVERS[0]}") == yes ]] || fail "expected the failed server to stay in maintenance mode" || return 1
+    echo "  OK the failed server is still in maintenance mode, as documented"
+
+    log "Failure path: re-running the update recovers the cluster"
+    ansible-playbook "$COLLECTION.rolling_update" "${EXTRA_VARS[@]}" -e seaweed_version=test-a -e target_group=volume
+    for s in "${VOLUME_SERVERS[@]}"; do
+        [[ $(maintenance_state "$s") == no ]] || fail "$s is still in maintenance mode after the re-run" || return 1
+    done
+    echo "  OK all volume servers are out of maintenance mode"
+    verify test-a
 }
 
 guard() {
@@ -246,6 +337,9 @@ case ${1:-test} in
     verify) shift; verify "$@" ;;
     idempotence) idempotence ;;
     dryrun) dryrun_fresh; dryrun_live ;;
+    addnode) deploy_partial; add_nodes ;;
+    maintenance) maintenance_effect ;;
+    failpath) failpath ;;
     guard) guard ;;
     update) update ;;
     down) down ;;
@@ -254,11 +348,14 @@ case ${1:-test} in
         [[ ${KEEP:-0} == 1 ]] || trap down EXIT
         up
         dryrun_fresh
-        deploy
+        deploy_partial
+        add_nodes
         verify test-a
         idempotence
         dryrun_live
         guard
+        maintenance_effect
+        failpath
         update
         verify test-b
         log "ALL TESTS PASSED"

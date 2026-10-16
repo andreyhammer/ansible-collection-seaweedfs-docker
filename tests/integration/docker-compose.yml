@@ -39,6 +39,17 @@ services:
       swfs-test:
         ipv4_address: 172.29.14.13
 
+  node04:
+    <<: *node
+    container_name: swfs-test-node04
+    hostname: node04
+    volumes:
+      - node04-docker:/var/lib/docker
+      - ./.work/id_ed25519.pub:/tmp/authorized_key.pub:ro
+    networks:
+      swfs-test:
+        ipv4_address: 172.29.14.14
+
 networks:
   swfs-test:
     name: swfs-test
@@ -50,3 +61,4 @@ volumes:
   node01-docker:
   node02-docker:
   node03-docker:
+  node04-docker:
