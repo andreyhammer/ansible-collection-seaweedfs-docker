@@ -7,6 +7,8 @@ services:
     restart: unless-stopped
 {% if filer_postgres_enabled %}
     environment:
+      # The built-in leveldb2 store is on by default and the filer refuses to run with two stores.
+      WEED_LEVELDB2_ENABLED: "false"
       WEED_POSTGRES2_ENABLED: "true"
       WEED_POSTGRES2_HOSTNAME: "{{ filer_postgres_host }}"
       WEED_POSTGRES2_PORT: "{{ filer_postgres_port }}"
