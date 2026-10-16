@@ -74,6 +74,10 @@ container start-up or the waits (they need the files to exist). Both cases are c
 - Masters: `http://<master-ip>:9333/cluster/status` shows a leader and the other masters.
 - Volume servers: `http://<master-ip>:9333/dir/status` lists every `ip:port`.
 - Containers on a node: `docker ps` shows names such as `master01`, `volume01-dg03`, `worker01-ec01`.
+- Workers: open the admin UI and check that every worker is listed. A worker registers itself when it connects to the
+  admin server (`-admin=<ip>:23646`), and the collection does not verify that: it only checks that the container is
+  running and that the admin port was reachable before it started. A worker that cannot connect (wrong address, broken
+  gRPC, incompatible version) still shows as a running container.
 
 ## Add a node (new hardware)
 

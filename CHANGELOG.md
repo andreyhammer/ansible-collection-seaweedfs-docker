@@ -22,3 +22,4 @@
   with an optional repair (`volume_fix_ownership`).
 - Removed the unused `common_seaweed_user` variable and the unused sysctl handler. Worker metrics (`worker_metrics_port`)
   are covered by the integration tests.
+- Documented that worker registration in the admin server is not verified by the collection (check the admin UI).
