@@ -67,6 +67,10 @@ The container is started with `-peers` set to the full list, so every master mus
 | `filer_postgres_host`, `_port`, `_db`, `_user` | `""`, `5432`, `seaweedfs`, `seaweedfs` | |
 | `filer_postgres_password` | env `SEAWEED_FILER_POSTGRES_PASSWORD` | `compose.yaml` is written with mode 0600 |
 
+With PostgreSQL enabled the role turns the built-in `leveldb2` store off (the filer refuses to run with two stores).
+The PostgreSQL mode is tested with SeaweedFS 4.48; version 4.18 fails to create its table when configured through
+environment variables (`syntax error at or near "%!"`), so use a recent version.
+
 ## Admin
 
 | Variable | Default | Notes |

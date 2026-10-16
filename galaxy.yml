@@ -24,4 +24,5 @@ build_ignore:
   - tests/integration/.work
   - .ansible
   - .gitignore
+  - .github
   - '*.tar.gz'

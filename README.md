@@ -78,6 +78,10 @@ Volume ports are `8080 + <MM>`. See `inventory/production/` for a complete examp
 Secrets are read from environment variables (`SEAWEED_FILER_POSTGRES_PASSWORD`, `SEAWEED_ADMIN_PASSWORD`).
 See `inventory/production/secrets.env.example`.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md): ground rules, how to run lint and the integration tests, pull request checklist.
+
 ## License
 
 Apache License 2.0.
