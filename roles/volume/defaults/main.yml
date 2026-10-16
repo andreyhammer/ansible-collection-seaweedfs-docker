@@ -33,6 +33,9 @@ volume_container_gid: 1000
 volume_check_ownership: true
 # Instead of refusing, recursively chown them. Can take long on full disks; a one-off migration aid.
 volume_fix_ownership: false
+# After every start, wait until the master lists the EC shards this server had before it (heartbeat registration).
+volume_ec_check: true
+volume_ec_register_timeout: 300
 volume_rack: ""
 volume_disk_type: "{{ volume_disk_type_default }}"
 volume_index_dir: "{{ volume_project_dir }}/index"

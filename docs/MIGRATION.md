@@ -23,7 +23,13 @@ done
   the command. Re-running the update (same or new version) switches it off again, or do it by hand:
   `volumeServer.state -nodes <ip:port> -maintenanceOff` in `weed shell`. Both the stop and the recovery are covered
   by the integration tests.
-- Each step waits for the node to be back in the cluster before moving on.
+- Each step waits for the node to be back in the cluster before moving on. For a volume server that also means its
+  erasure coding shards: before the restart the role reads how many EC shards the master lists for the server, and after
+  the restart it waits until the master lists at least that many again (the shards are registered by the server's
+  heartbeat, which can come a little after the server itself appears). If they do not come back within
+  `volume_ec_register_timeout` (300 s) the update stops before the next server is touched, so two servers holding
+  shards of the same EC volume are never down at once. The server stays in maintenance mode, as after any other
+  failure. Covered by an integration test (a deleted shard file stops the upgrade).
 - Keep `seaweed_large_disk` unchanged. Take backups of the data you cannot lose before the first production upgrade;
   the collection does not do it for you.
 

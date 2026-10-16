@@ -1,0 +1,30 @@
+---
+# Reads the master topology and sets volume_ec_shards_now: the number of erasure coding shards the master
+# currently lists for this volume server. With `volume_ec_wait_for` set (a number), keeps asking until the master
+# lists at least that many, which means the server has re-registered its shards after a restart.
+- name: Read the EC shard count the master has for this volume server
+  ansible.builtin.uri:
+    url: "http://{{ masters_list | first }}/dir/status"
+    return_content: true
+  register: volume_ec_topology
+  until: volume_ec_wait_for is not defined or volume_ec_shards_registered | int >= volume_ec_wait_for | int
+  retries: "{{ volume_ec_retries if volume_ec_wait_for is defined else 0 }}"
+  delay: 3
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  vars:
+    volume_ec_retries: "{{ ((volume_ec_register_timeout | int) / 3) | round(0, 'ceil') | int }}"
+    volume_ec_nodes: >-
+      {{ ((volume_ec_topology.json | default({})).get('Topology', {})).get('DataCenters', [])
+         | map(attribute='Racks') | flatten | map(attribute='DataNodes') | flatten
+         | selectattr('Url', 'equalto', ansible_host ~ ':' ~ volume_port) | list }}
+    volume_ec_shards_registered: "{{ (volume_ec_nodes | map(attribute='EcShards') | first | default(0)) | int }}"
+
+- name: Remember the EC shard count
+  ansible.builtin.set_fact:
+    volume_ec_shards_now: >-
+      {{ (((volume_ec_topology.json | default({})).get('Topology', {})).get('DataCenters', [])
+          | map(attribute='Racks') | flatten | map(attribute='DataNodes') | flatten
+          | selectattr('Url', 'equalto', ansible_host ~ ':' ~ volume_port)
+          | map(attribute='EcShards') | first | default(0)) | int }}

@@ -114,6 +114,17 @@
     path: "{{ volume_project_dir }}/compose.yaml"
   register: volume_compose_file
 
+# The shards this server holds are registered with the master by its heartbeat after every start; a restart must
+# not be considered finished (and the next server must not be touched) before they are back.
+- name: Count the EC shards registered before the start
+  ansible.builtin.include_tasks: ec_shards.yml
+  when: not ansible_check_mode and volume_ec_check | bool
+
+- name: Remember the EC shard count before the start
+  ansible.builtin.set_fact:
+    volume_ec_shards_before: "{{ volume_ec_shards_now }}"
+  when: not ansible_check_mode and volume_ec_check | bool
+
 # In check mode the project directory is not created, and docker compose cannot inspect a missing project.
 - name: Start the volume container
   community.docker.docker_compose_v2:
@@ -138,3 +149,17 @@
     seaweed_expected_node: "{{ ansible_host }}:{{ volume_port }}"
     seaweed_status_path: /dir/status
   when: not ansible_check_mode
+
+- name: Wait until the EC shards are registered again
+  ansible.builtin.include_tasks: ec_shards.yml
+  vars:
+    volume_ec_wait_for: "{{ volume_ec_shards_before }}"
+  when: not ansible_check_mode and volume_ec_check | bool
+
+- name: Fail when EC shards did not come back
+  ansible.builtin.fail:
+    msg: >-
+      {{ inventory_hostname }} had {{ volume_ec_shards_before }} EC shards registered before the start but the master
+      lists {{ volume_ec_shards_now }} after {{ volume_ec_register_timeout }} s. Not continuing: check the volume
+      server log and `ec.volume.list`-style output in weed shell before touching another server.
+  when: not ansible_check_mode and volume_ec_check | bool and volume_ec_shards_now | int < volume_ec_shards_before | int

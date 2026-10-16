@@ -23,3 +23,5 @@
 - Removed the unused `common_seaweed_user` variable and the unused sysctl handler. Worker metrics (`worker_metrics_port`)
   are covered by the integration tests.
 - Documented that worker registration in the admin server is not verified by the collection (check the admin UI).
+- Volume: after every start the role waits until the master lists the erasure coding shards the server had before
+  (`volume_ec_check`, `volume_ec_register_timeout`); a rolling update stops if they do not come back.

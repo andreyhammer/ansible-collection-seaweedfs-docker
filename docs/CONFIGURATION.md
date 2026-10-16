@@ -144,6 +144,8 @@ and `volume_disk_type`.
 | `volume_container_uid` / `_gid` | `1000` / `1000` | Owner of the data and index directories on the host, matching the image's `seaweed` user |
 | `volume_check_ownership` | `true` | Before starting, fail if a data or index dir holds files not owned by the container user (skipped when `volume_entrypoint` is set) |
 | `volume_fix_ownership` | `false` | Recursively chown such files instead of failing; can take long on full disks |
+| `volume_ec_check` | `true` | After every start, wait until the master lists the EC shards the server had registered before |
+| `volume_ec_register_timeout` | `300` | Seconds to wait for them; the run fails after that |
 | `volume_index_dir` | `<docker_compose_dir>/<container_name>/index` | Index directory on the host |
 
 The data directories are mounted as `/data/disk1`, `/data/disk2`, ... and the index directory as `/cache`.

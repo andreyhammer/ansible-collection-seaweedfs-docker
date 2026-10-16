@@ -329,6 +329,32 @@ failpath() {
     verify test-a
 }
 
+# EC volumes: a volume server must re-register its erasure coding shards before the next server is touched.
+ec_shards() {
+    log "EC shards: encode a volume, then a server that lost a shard must stop the upgrade"
+    local fid vid out n file alias=""
+    fid=$(curl -sf "http://172.29.14.11:9333/dir/assign" | python3 -c 'import sys,json;print(json.load(sys.stdin)["fid"])')
+    vid=${fid%%,*}
+    head -c 200000 /dev/urandom | curl -sf -F file=@- "http://$(curl -sf "http://172.29.14.11:9333/dir/lookup?volumeId=$vid" \
+        | python3 -c 'import sys,json;print(json.load(sys.stdin)["locations"][0]["url"])')/$fid" >/dev/null
+    printf 'lock\nec.encode -volumeId=%s\nunlock\n' "$vid" | weed_shell | tail -2
+    sleep 5
+    # A shard file on a first-group disk (disk01/disk02) of node01-03 belongs to that node's dg01 volume server.
+    for n in 1 2 3; do
+        file=$(docker exec "swfs-test-node0$n" sh -c "find /mnt/disk01 /mnt/disk02 -name '$vid.ec[0-9][0-9]' | head -1")
+        if [[ -n $file ]]; then alias="volume0$n-dg01"; break; fi
+    done
+    [[ -n $alias ]] || fail "no shard of volume $vid found on a dg01 disk" || return 1
+    echo "  volume $vid is erasure coded; deleting $file on $alias"
+    docker exec "swfs-test-node0$n" rm -f "$file"
+    if out=$(ansible-playbook "$COLLECTION.rolling_update" "${EXTRA_VARS[@]}" -e seaweed_version=test-b -e target_group=volume \
+        -e volume_ec_register_timeout=15 --limit "$alias" 2>&1); then
+        fail "the upgrade went on although a shard did not come back" || return 1
+    fi
+    grep -q 'EC shards registered before the start' <<<"$out" || { tail -20 <<<"$out" >&2; fail "stopped, but not because of the missing shard" || return 1; }
+    echo "  OK the upgrade stops when a shard does not come back"
+}
+
 guard() {
     log "Guard: switching the image variant on a live cluster must be refused"
     local flipped=true out
@@ -406,6 +432,7 @@ case ${1:-test} in
         ownership
         maintenance_effect
         failpath
+        ec_shards
         update
         verify test-b
         log "ALL TESTS PASSED"
