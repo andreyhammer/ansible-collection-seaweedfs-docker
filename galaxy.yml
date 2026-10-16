@@ -4,7 +4,7 @@ name: seaweedfs_docker
 version: 1.0.0
 readme: README.md
 authors:
-  - Andrey Hammer
+  - Andrey Andronov
 description: Deploy, upgrade and scale a SeaweedFS cluster with Docker Compose.
 license:
   - Apache-2.0
