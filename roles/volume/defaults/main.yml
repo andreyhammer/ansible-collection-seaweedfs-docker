@@ -35,7 +35,7 @@ volume_check_ownership: true
 volume_fix_ownership: false
 volume_rack: ""
 volume_disk_type: "{{ volume_disk_type_default }}"
-volume_index_dir_pattern: "{{ docker_compose_dir }}/index-{{ volume_container_name }}"
+volume_index_dir: "{{ volume_project_dir }}/index"
 
 volume_container_name: >-
   {{ container_prefix }}{{ container_role_volume }}{{ '%02d' | format(volume_node_num | int) }}

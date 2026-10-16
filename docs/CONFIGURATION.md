@@ -19,7 +19,7 @@ With `container_prefix: "seaweed-"`: `seaweed-master01`, `seaweed-volume01-dg03`
 | Artifact | Path |
 |---|---|
 | Project and compose file | `<docker_compose_dir>/<container_name>/compose.yaml` |
-| Volume index dir | `<docker_compose_dir>/index-<container_name>/` |
+| Volume index dir | `<docker_compose_dir>/<container_name>/index/` |
 | Worker working dir | `<docker_compose_dir>/<container_name>/data/` |
 
 Ports: master 9333, filer 8888 (S3 8333 if enabled), admin 23646, volume `8080 + <MM>` (dg01 is 8081).
@@ -145,7 +145,7 @@ and `volume_disk_type`.
 | `volume_container_uid` / `_gid` | `1000` / `1000` | Owner of the data and index directories on the host, matching the image's `seaweed` user |
 | `volume_check_ownership` | `true` | Before starting, fail if a data or index dir holds files not owned by the container user (skipped when `volume_entrypoint` is set) |
 | `volume_fix_ownership` | `false` | Recursively chown such files instead of failing; can take long on full disks |
-| `volume_index_dir_pattern` | `<docker_compose_dir>/index-<container_name>` | Index directory on the host |
+| `volume_index_dir` | `<docker_compose_dir>/<container_name>/index` | Index directory on the host |
 
 The data directories are mounted as `/data/disk1`, `/data/disk2`, ... and the index directory as `/cache`.
 

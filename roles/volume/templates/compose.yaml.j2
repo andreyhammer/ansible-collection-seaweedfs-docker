@@ -19,7 +19,7 @@ services:
 {% for dir in volume_data_dirs %}
       - {{ dir }}:/data/disk{{ loop.index }}
 {% endfor %}
-      - {{ volume_index_dir_pattern }}:/cache
+      - {{ volume_index_dir }}:/cache
 {% for cfg in volume_config_files %}
       - {{ cfg.dest }}:{{ cfg.container_path }}{{ ':ro' if cfg.read_only | default(true) | bool else '' }}
 {% endfor %}

@@ -41,7 +41,7 @@
 
 - name: Create the index directory
   ansible.builtin.file:
-    path: "{{ volume_index_dir_pattern }}"
+    path: "{{ volume_index_dir }}"
     state: directory
     owner: "{{ volume_container_uid }}"
     group: "{{ volume_container_gid }}"
@@ -72,7 +72,7 @@
       - ")"
       - -print
       - -quit
-  loop: "{{ volume_data_dirs + [volume_index_dir_pattern] }}"
+  loop: "{{ volume_data_dirs + [volume_index_dir] }}"
   register: volume_foreign_files
   changed_when: false
   failed_when: false
