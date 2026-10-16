@@ -86,7 +86,6 @@ filer_s3_idle_timeout: 3600
 | `common_sysctl` | `vm.swappiness: 10`, `net.core.somaxconn: 4096` | Applied by `common`; set `{}` to leave the kernel alone |
 | `common_base_dirs` | `docker_compose_dir`, `/data` | Created on every node |
 | `common_min_free_gb` | `10` | Free space required on each volume data dir (needs gathered facts) |
-| `common_seaweed_user` | `""` | When set, a system user with this name is created (containers do not use it yet) |
 
 ## Master
 

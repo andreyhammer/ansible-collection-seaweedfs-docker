@@ -20,9 +20,6 @@ common_sysctl:
   vm.swappiness: 10
   net.core.somaxconn: 4096
 
-# Create this user when set (for containers that do not run as root).
-common_seaweed_user: ""
-
 # Minimum free space (GiB) required on every volume data dir.
 common_min_free_gb: 10
 

@@ -119,3 +119,16 @@
             - "-s3.idleTimeout=3600"
             - "S3_EXTERNAL_URL=http://s3.test.local:8333"
             - "/opt/seaweed/config/filer-test.conf:/etc/seaweedfs/filer-test.conf:ro"
+
+- name: Verify the worker metrics endpoint
+  hosts: worker01-ec01
+  gather_facts: false
+  tasks:
+    - name: Read the Prometheus metrics
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:{{ worker_metrics_port }}/metrics"
+        return_content: true
+      register: verify_worker_metrics
+      retries: 10
+      delay: 3
+      until: verify_worker_metrics.status == 200

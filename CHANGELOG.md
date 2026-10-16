@@ -20,3 +20,5 @@
   (`0` is passed explicitly instead of omitted). `compose.yaml` files are written with mode `0600`.
 - Volume: pre-start check that data and index dirs hold no files owned by someone else (`volume_check_ownership`),
   with an optional repair (`volume_fix_ownership`).
+- Removed the unused `common_seaweed_user` variable and the unused sysctl handler. Worker metrics (`worker_metrics_port`)
+  are covered by the integration tests.

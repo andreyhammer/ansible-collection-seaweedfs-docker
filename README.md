@@ -20,7 +20,8 @@ with Docker Compose. Stage 1 targets Debian.
 ## Quick start
 
 ```bash
-ansible-galaxy collection install andreyhammer.seaweedfs_docker
+# Not on Galaxy yet: build and install the archive (see docs/INSTALL.md)
+ansible-galaxy collection build && ansible-galaxy collection install andreyhammer-seaweedfs_docker-*.tar.gz
 # Adapt inventory/production/ from this repository, then export secrets:
 export SEAWEED_FILER_POSTGRES_PASSWORD=...
 ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.site --check
