@@ -71,8 +71,48 @@ container start-up or the waits (they need the files to exist). Both cases are c
 - Volume servers: `http://<master-ip>:9333/dir/status` lists every `ip:port`.
 - Containers on a node: `docker ps` shows names such as `master01`, `volume01-dg03`, `worker01-ec01`.
 
+## Add a node (new hardware)
+
+1. Prepare the machine: Debian, SSH access, Docker Engine and the `docker compose` plugin, data disks mounted at the
+   paths you will list in `volume_data_dirs`.
+2. Add **every alias that will run on it** to the inventory (filer, volume servers, workers, ...), each with the new
+   node's IP in `ansible_host` and the next node number (for example `volume05-dg01`, `worker05-ec01`, `filer05`).
+3. Put those aliases into one group named after the node, so that you can address the whole node by one name:
+
+   ```yaml
+   all:
+     children:
+       node05:
+         hosts:
+           filer05:
+           volume05-dg01:
+           volume05-dg02:
+           worker05-ec01:
+   ```
+
+4. Check what would happen, then add the node:
+
+   ```bash
+   ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.add_node -e target_node=node05 --check
+   ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.add_node -e target_node=node05
+   ```
+
+   `target_node` is any Ansible host pattern: the group above, a single alias, or a comma-separated list. Do not use
+   wildcards such as `*05*`: they also match aliases like `volume01-dg05`.
+5. Verify as described in "Verify" above. A second `site` run must report no changes.
+
+What `add_node` does and does not do:
+
+- It runs the pre-flight checks and then the roles for the aliases you name; existing nodes are not touched.
+- New volume servers receive new writes at once. **Existing data is not moved**: redistribute volumes with SeaweedFS's
+  own tools (for example `volume.balance` in `weed shell`), which is outside this collection and not covered by the
+  tests.
+- **Adding a master is different** and is not handled by `add_node`: every master is started with the full list of
+  masters (`-peers`), so the list in `masters_list` changes for all of them. This case has not been tested. Do not use
+  `add_node` for a new master without rehearsing it on a copy first.
+
 ## Try it safely first
 
-`tests/integration/run.sh test` builds three disposable Docker-in-Docker nodes on your workstation and runs the whole
+`tests/integration/run.sh test` builds three disposable Debian 12 nodes (each with its own Docker daemon) on your workstation and runs the whole
 flow (dry run, deploy, idempotence, variant guard, rolling update) against them. Use it before touching real hosts. It needs
 Docker and runs privileged containers, so use a development machine.

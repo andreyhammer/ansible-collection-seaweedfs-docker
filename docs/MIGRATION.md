@@ -14,10 +14,15 @@ done
 
 - **Masters:** the current leader is detected through `/cluster/status` and upgraded last.
 - **Volume servers:** maintenance mode is switched on before and off after each upgrade, using
-  `volumeServer.state` through `weed shell` in a master container. That the command is accepted has been verified on
-  the test stand; that it actually stops writes on a loaded cluster has not.
-- If an upgrade fails, the run stops. A volume server that failed mid-upgrade may still be in maintenance mode;
-  switch it back manually (`volumeServer.state -nodes <ip:port> -maintenanceOff` in `weed shell`).
+  `volumeServer.state` through `weed shell` in a master container. While it is on, the master stops assigning new
+  writes to that server (verified: a server that received about a third of the writes received none) and brings it back
+  into the rotation when the mode is switched off. It is not a hard write block: a write sent directly to the server
+  for a volume it already holds is still accepted. Reads are not affected.
+- If an upgrade fails, the run stops at the first instance and the others are not touched. The failed instance keeps
+  running its previous container, but a volume server stays in maintenance mode; the error message says so and gives
+  the command. Re-running the update (same or new version) switches it off again, or do it by hand:
+  `volumeServer.state -nodes <ip:port> -maintenanceOff` in `weed shell`. Both the stop and the recovery are covered
+  by the integration tests.
 - Each step waits for the node to be back in the cluster before moving on.
 - Keep `seaweed_large_disk` unchanged. Take backups of the data you cannot lose before the first production upgrade;
   the collection does not do it for you.

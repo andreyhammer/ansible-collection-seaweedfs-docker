@@ -31,7 +31,7 @@ ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.site
 |---|---|
 | Upgrade volumes | `ansible-playbook andreyhammer.seaweedfs_docker.rolling_update -e seaweed_version=4.49` |
 | Upgrade masters (leader last) | `... rolling_update -e seaweed_version=4.49 -e target_group=master` |
-| Add a node | `ansible-playbook andreyhammer.seaweedfs_docker.add_node -e target_node=volume06-dg01` |
+| Add a node | `ansible-playbook andreyhammer.seaweedfs_docker.add_node -e target_node=node05` (a group with all aliases of the new node; see `docs/INSTALL.md`) |
 
 ## Image selection
 
@@ -55,8 +55,8 @@ Safeguards (run before any container is created or recreated, so `site`, `add_no
 
 ## Testing on disposable nodes
 
-`tests/integration/run.sh` builds three throwaway Docker-in-Docker nodes (reached over SSH like real hosts,
-no ports published on your machine), deploys the full cluster and checks it. Production hosts are never touched.
+`tests/integration/run.sh` builds three throwaway Debian 12 nodes with a Docker-in-Docker daemon (reached over SSH like real
+hosts, no ports published on your machine), deploys the full cluster and checks it. Production hosts are never touched.
 
 ```bash
 tests/integration/run.sh test                          # up, dry run, deploy, verify, idempotence, variant guard, rolling update, down

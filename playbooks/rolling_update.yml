@@ -71,5 +71,6 @@
             msg: >-
               Upgrade of {{ inventory_hostname }} failed; the rolling update is stopped.
               Reason: {{ ansible_failed_result.msg | default('unknown') }}
-              {{ 'The volume server may still be in maintenance mode and needs manual attention.'
+              {{ 'The volume server may still be in maintenance mode. Re-run the update, or run in weed shell:'
+                 ~ ' volumeServer.state -nodes ' ~ ansible_host ~ ':' ~ (8080 + (volume_dg | int)) ~ ' -maintenanceOff'
                  if 'volume' in group_names else '' }}
