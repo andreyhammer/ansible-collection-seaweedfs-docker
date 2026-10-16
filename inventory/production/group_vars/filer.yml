@@ -1,0 +1,6 @@
+---
+filer_port: 8888
+filer_s3_enabled: false
+filer_postgres_enabled: false
+# When enabled, also export SEAWEED_FILER_POSTGRES_PASSWORD before running ansible-playbook.
+# filer_postgres_host: 10.0.0.20

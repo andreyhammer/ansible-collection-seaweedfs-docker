@@ -1,0 +1,26 @@
+---
+# Refuse to change the image variant of an existing container.
+# Input: seaweed_guard_container - name of the container that is about to be created or recreated.
+- name: Validate the image variant setting
+  ansible.builtin.include_tasks: image_variant.yml
+
+- name: Inspect the existing container
+  ansible.builtin.command: >-
+    docker inspect --format '{% raw %}{{.Config.Image}}{% endraw %}' {{ seaweed_guard_container }}
+  register: seaweed_guard_current
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Refuse to switch the image variant of an existing container
+  ansible.builtin.assert:
+    that: >-
+      seaweed_guard_current.rc != 0
+      or seaweed_allow_variant_change | bool
+      or (seaweed_guard_current.stdout | trim).endswith('_large_disk') == (seaweed_large_disk | bool)
+    fail_msg: >-
+      {{ seaweed_guard_container }} runs {{ seaweed_guard_current.stdout | trim }} but the requested image is
+      {{ seaweed_image }}: that would switch between the regular and the large_disk build, which are not
+      interchangeable for existing data. Fix seaweed_large_disk, or set seaweed_allow_variant_change=true only
+      for a deliberate, tested migration.
+    quiet: true

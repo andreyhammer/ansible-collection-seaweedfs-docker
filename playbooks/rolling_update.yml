@@ -1,0 +1,75 @@
+---
+# Usage: ansible-playbook andreyhammer.seaweedfs_docker.rolling_update -e seaweed_version=X [-e target_group=master]
+# Upgrade order: master (leader last), filer, admin, volume, worker; run one group per invocation.
+- name: Build the upgrade order
+  hosts: "{{ target_group | default('volume') }}"
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Find the current master leader
+      ansible.builtin.uri:
+        url: "http://{{ masters_list | first }}/cluster/status"
+        return_content: true
+      register: rolling_cluster_status
+      run_once: true
+      delegate_to: localhost
+      when: (target_group | default('volume')) == 'master'
+
+    - name: Resolve the leader alias
+      ansible.builtin.set_fact:
+        rolling_leader_aliases: >-
+          {{ dict(ansible_play_hosts_all | zip(ansible_play_hosts_all | map('extract', hostvars, 'ansible_host')))
+             | dict2items
+             | selectattr('value', 'equalto', (rolling_cluster_status.json.Leader | default('')).split(':') | first)
+             | map(attribute='key') | list }}
+      run_once: true
+      delegate_to: localhost
+      when: (target_group | default('volume')) == 'master'
+
+    - name: Build the ordered host group (leader last)
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups: seaweed_upgrade_order
+      loop: >-
+        {{ ansible_play_hosts_all | reject('in', rolling_leader_aliases | default([])) | list
+           + (rolling_leader_aliases | default([])) }}
+      run_once: true
+      delegate_to: localhost
+
+- name: Rolling update
+  hosts: seaweed_upgrade_order
+  serial: 1
+  max_fail_percentage: 0
+  gather_facts: true
+  become: true
+  tasks:
+    - name: Upgrade one instance
+      block:
+        - name: Maintenance mode on (volume only)
+          ansible.builtin.include_role:
+            name: andreyhammer.seaweedfs_docker.volume
+            tasks_from: maintenance
+          vars:
+            volume_maintenance: true
+          when: "'volume' in group_names"
+
+        - name: Deploy the new version
+          ansible.builtin.include_role:
+            name: "andreyhammer.seaweedfs_docker.{{ item }}"
+          loop: "{{ ['master', 'filer', 'admin', 'volume', 'worker'] | select('in', group_names) | list }}"
+
+        - name: Maintenance mode off (volume only)
+          ansible.builtin.include_role:
+            name: andreyhammer.seaweedfs_docker.volume
+            tasks_from: maintenance
+          vars:
+            volume_maintenance: false
+          when: "'volume' in group_names"
+      rescue:
+        - name: Stop the rolling update
+          ansible.builtin.fail:
+            msg: >-
+              Upgrade of {{ inventory_hostname }} failed; the rolling update is stopped.
+              Reason: {{ ansible_failed_result.msg | default('unknown') }}
+              {{ 'The volume server may still be in maintenance mode and needs manual attention.'
+                 if 'volume' in group_names else '' }}

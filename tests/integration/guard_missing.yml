@@ -1,0 +1,12 @@
+---
+# Negative test: without seaweed_large_disk the roles must refuse to run. It is run with `-i localhost,` so that
+# no inventory group_vars can supply the variable.
+- name: A missing seaweed_large_disk is rejected
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Run the image variant check
+      ansible.builtin.include_role:
+        name: andreyhammer.seaweedfs_docker.common
+        tasks_from: image_variant

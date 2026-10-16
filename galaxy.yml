@@ -1,0 +1,27 @@
+---
+namespace: andreyhammer
+name: seaweedfs_docker
+version: 1.0.0
+readme: README.md
+authors:
+  - Andrey Hammer
+description: Deploy, upgrade and scale a SeaweedFS cluster with Docker Compose.
+license:
+  - Apache-2.0
+tags:
+  - seaweedfs
+  - docker
+  - storage
+  - infrastructure
+repository: https://github.com/andreyhammer/seaweedfs-docker
+dependencies:
+  community.docker: ">=5.0.0"
+  ansible.posix: ">=1.5.0"
+build_ignore:
+  - .git
+  - CLAUDE.md
+  - tests/output
+  - tests/integration/.work
+  - .ansible
+  - .gitignore
+  - '*.tar.gz'

@@ -1,0 +1,79 @@
+---
+- name: Validate the image variant setting
+  ansible.builtin.include_tasks: image_variant.yml
+
+- name: Check that Docker Engine is installed
+  ansible.builtin.command: docker --version
+  register: common_docker_version
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Fail when Docker Engine is missing
+  ansible.builtin.fail:
+    msg: "Docker Engine is not installed on {{ inventory_hostname }}. Install Docker before running this collection."
+  when: common_docker_version.rc != 0
+
+- name: Check that the docker compose plugin is available
+  ansible.builtin.command: docker compose version
+  register: common_compose_version
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Fail when the docker compose plugin is missing
+  ansible.builtin.fail:
+    msg: >-
+      The 'docker compose' plugin is not available on {{ inventory_hostname }}.
+      Install it before running this collection.
+  when: common_compose_version.rc != 0
+
+- name: Configure sysctl
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: true
+  loop: "{{ common_sysctl | dict2items }}"
+
+- name: Create base directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ common_base_dirs }}"
+
+- name: Create the seaweed user
+  ansible.builtin.user:
+    name: "{{ common_seaweed_user }}"
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+  when: common_seaweed_user | length > 0
+
+- name: Check that volume data dirs are mounted
+  ansible.builtin.command: "findmnt --target {{ item | quote }} --noheadings"
+  loop: "{{ volume_data_dirs }}"
+  register: common_findmnt
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Fail when a data dir is not mounted
+  ansible.builtin.fail:
+    msg: "{{ item.item }} is not mounted on {{ inventory_hostname }}."
+  loop: "{{ common_findmnt.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc != 0
+
+- name: Check free space on volume data dirs
+  ansible.builtin.assert:
+    that:
+      - (ansible_facts.mounts
+        | selectattr('mount', 'equalto', item)
+        | map(attribute='size_available') | first | default(0)) >= (common_min_free_gb * 1024 * 1024 * 1024)
+    fail_msg: "{{ item }} has less than {{ common_min_free_gb }} GiB free on {{ inventory_hostname }}."
+    quiet: true
+  loop: "{{ volume_data_dirs }}"
+  when: ansible_facts.mounts is defined

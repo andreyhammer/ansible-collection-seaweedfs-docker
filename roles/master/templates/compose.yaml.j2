@@ -1,0 +1,15 @@
+# Managed by Ansible (andreyhammer.seaweedfs_docker). Do not edit.
+services:
+  master:
+    image: {{ seaweed_image }}
+    container_name: {{ master_container_name }}
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - {{ master_project_dir }}:/data
+    command:
+      - master
+      - -port={{ master_port }}
+      - -ip={{ ansible_host }}
+      - -mdir=/data
+      - -peers={{ masters }}

@@ -1,0 +1,5 @@
+secrets.env
+tests/output/
+*.tar.gz
+.ansible/
+tests/integration/.work/

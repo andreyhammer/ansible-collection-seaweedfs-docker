@@ -1,0 +1,59 @@
+---
+- name: Validate filer variables
+  ansible.builtin.assert:
+    that:
+      - node_num is defined
+      - masters_list | length > 0
+      - not filer_postgres_enabled or (filer_postgres_host | length > 0 and filer_postgres_password | length > 0)
+    fail_msg: >-
+      node_num and masters_list must be set for {{ inventory_hostname }};
+      PostgreSQL needs filer_postgres_host and SEAWEED_FILER_POSTGRES_PASSWORD when enabled.
+    quiet: true
+  no_log: true
+
+- name: Check the image variant
+  ansible.builtin.include_role:
+    name: andreyhammer.seaweedfs_docker.common
+    tasks_from: image_guard
+  vars:
+    seaweed_guard_container: "{{ filer_container_name }}"
+
+- name: Check that a master is reachable
+  ansible.builtin.wait_for:
+    host: "{{ (masters_list | first).split(':') | first }}"
+    port: "{{ (masters_list | first).split(':') | last | int }}"
+    timeout: "{{ health_check_timeout }}"
+  when: not ansible_check_mode
+
+- name: Create the filer project directory
+  ansible.builtin.file:
+    path: "{{ filer_project_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Generate compose.yaml
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ filer_project_dir }}/compose.yaml"
+    mode: "0600"
+  no_log: true
+
+- name: Check whether the filer project exists
+  ansible.builtin.stat:
+    path: "{{ filer_project_dir }}/compose.yaml"
+  register: filer_compose_file
+
+# In check mode the project directory is not created, and docker compose cannot inspect a missing project.
+- name: Start the filer container
+  community.docker.docker_compose_v2:
+    project_src: "{{ filer_project_dir }}"
+    state: present
+    pull: missing
+  when: not ansible_check_mode or filer_compose_file.stat.exists
+
+- name: Wait for the filer port
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: "{{ filer_port }}"
+    timeout: "{{ health_check_timeout }}"
+  when: not ansible_check_mode

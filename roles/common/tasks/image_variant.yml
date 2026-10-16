@@ -1,0 +1,19 @@
+---
+# The official image comes in two incompatible builds (regular and "large disk"). The choice is never implied.
+- name: Require an explicit image variant
+  ansible.builtin.assert:
+    that:
+      - seaweed_large_disk is defined
+      - (seaweed_large_disk | string | lower) in ['true', 'false']
+    fail_msg: >-
+      Set seaweed_large_disk explicitly to true or false (regular or large_disk build of the SeaweedFS image).
+      There is deliberately no default: using the wrong variant on an existing cluster breaks it.
+    quiet: true
+
+- name: Check that the image name matches seaweed_large_disk
+  ansible.builtin.assert:
+    that: seaweed_image.endswith('_large_disk') == (seaweed_large_disk | bool)
+    fail_msg: >-
+      seaweed_image ({{ seaweed_image }}) and seaweed_large_disk ({{ seaweed_large_disk }}) disagree.
+      A large_disk image must have a tag ending in _large_disk, and a regular image must not.
+    quiet: true

@@ -1,0 +1,15 @@
+---
+# Toggle maintenance mode for this volume server. Set `volume_maintenance: true|false` before including.
+- name: Set volume maintenance mode
+  ansible.builtin.command:
+    cmd: "docker exec -i {{ seaweed_shell_container }} weed shell -master={{ masters_list | first }}"
+    stdin: "{{ volume_maintenance_command }}"
+  delegate_to: "{{ groups['master'] | first }}"
+  vars:
+    seaweed_shell_master: "{{ groups['master'] | first }}"
+    seaweed_shell_container: >-
+      {{ container_prefix ~ container_role_master ~ ('%02d' | format(hostvars[seaweed_shell_master].node_num | int)) }}
+  register: volume_maintenance_result
+  changed_when: true
+  failed_when: volume_maintenance_result.rc != 0 or 'error' in (volume_maintenance_result.stderr | lower)
+  when: not ansible_check_mode

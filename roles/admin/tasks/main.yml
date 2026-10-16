@@ -1,0 +1,63 @@
+---
+- name: Validate admin variables
+  ansible.builtin.assert:
+    that:
+      - node_num is defined
+      - masters_list | length > 0
+    fail_msg: "node_num and masters_list must be set for {{ inventory_hostname }}."
+    quiet: true
+
+- name: Check the image variant
+  ansible.builtin.include_role:
+    name: andreyhammer.seaweedfs_docker.common
+    tasks_from: image_guard
+  vars:
+    seaweed_guard_container: "{{ admin_container_name }}"
+
+- name: Require a reachable admin when workers are deployed
+  ansible.builtin.assert:
+    that: admin_exposed | bool or (groups['worker'] | default([]) | length) == 0
+    fail_msg: >-
+      The admin server would listen on loopback only, but the inventory has workers that must reach it.
+      Export SEAWEED_ADMIN_PASSWORD, or set admin_allow_insecure_bind: true on an isolated network.
+    quiet: true
+
+- name: Check that a master is reachable
+  ansible.builtin.wait_for:
+    host: "{{ (masters_list | first).split(':') | first }}"
+    port: "{{ (masters_list | first).split(':') | last | int }}"
+    timeout: "{{ health_check_timeout }}"
+  when: not ansible_check_mode
+
+- name: Create the admin project directory
+  ansible.builtin.file:
+    path: "{{ admin_project_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Generate compose.yaml
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ admin_project_dir }}/compose.yaml"
+    mode: "0600"
+  no_log: true
+
+- name: Check whether the admin project exists
+  ansible.builtin.stat:
+    path: "{{ admin_project_dir }}/compose.yaml"
+  register: admin_compose_file
+
+# In check mode the project directory is not created, and docker compose cannot inspect a missing project.
+- name: Start the admin container
+  community.docker.docker_compose_v2:
+    project_src: "{{ admin_project_dir }}"
+    state: present
+    pull: missing
+  when: not ansible_check_mode or admin_compose_file.stat.exists
+
+- name: Wait for the admin port
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host if admin_exposed | bool else '127.0.0.1' }}"
+    port: "{{ admin_port }}"
+    timeout: "{{ health_check_timeout }}"
+  when: not ansible_check_mode

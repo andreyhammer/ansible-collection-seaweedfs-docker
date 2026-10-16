@@ -1,0 +1,34 @@
+---
+# Usage: ansible-playbook andreyhammer.seaweedfs_docker.add_node -e "target_node=<alias or group>"
+- name: Validate input
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Require target_node
+      ansible.builtin.assert:
+        that: target_node is defined
+        fail_msg: "Pass the inventory alias or group to deploy with -e target_node=<alias>."
+        quiet: true
+
+- name: Add a node to the SeaweedFS cluster
+  hosts: "{{ target_node | default('target_node_is_not_set') }}"
+  gather_facts: true
+  become: true
+  roles:
+    - role: andreyhammer.seaweedfs_docker.common
+      tags: [common]
+    - role: andreyhammer.seaweedfs_docker.master
+      when: "'master' in group_names"
+      tags: [master]
+    - role: andreyhammer.seaweedfs_docker.filer
+      when: "'filer' in group_names"
+      tags: [filer]
+    - role: andreyhammer.seaweedfs_docker.admin
+      when: "'admin' in group_names"
+      tags: [admin]
+    - role: andreyhammer.seaweedfs_docker.volume
+      when: "'volume' in group_names"
+      tags: [volume]
+    - role: andreyhammer.seaweedfs_docker.worker
+      when: "'worker' in group_names"
+      tags: [worker]

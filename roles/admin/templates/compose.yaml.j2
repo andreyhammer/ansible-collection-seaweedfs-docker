@@ -1,0 +1,25 @@
+# Managed by Ansible (andreyhammer.seaweedfs_docker). Do not edit.
+services:
+  admin:
+    image: {{ seaweed_image }}
+    container_name: {{ admin_container_name }}
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - {{ admin_project_dir }}:/data
+    command:
+      - admin
+      - -master={{ masters }}
+      - -port={{ admin_port }}
+      - -dataDir=/data
+{% if admin_bind_ip | length > 0 %}
+      - -ip={{ admin_bind_ip }}
+{% elif admin_allow_insecure_bind | bool and admin_password | length == 0 %}
+      - -ip={{ ansible_host }}
+{% endif %}
+{% if admin_allow_insecure_bind | bool %}
+      - -allowInsecureBind
+{% endif %}
+{% if admin_password | length > 0 %}
+      - -adminPassword={{ admin_password }}
+{% endif %}

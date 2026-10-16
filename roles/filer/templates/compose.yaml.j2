@@ -1,0 +1,27 @@
+# Managed by Ansible (andreyhammer.seaweedfs_docker). Do not edit.
+services:
+  filer:
+    image: {{ seaweed_image }}
+    container_name: {{ filer_container_name }}
+    network_mode: host
+    restart: unless-stopped
+{% if filer_postgres_enabled %}
+    environment:
+      WEED_POSTGRES2_ENABLED: "true"
+      WEED_POSTGRES2_HOSTNAME: "{{ filer_postgres_host }}"
+      WEED_POSTGRES2_PORT: "{{ filer_postgres_port }}"
+      WEED_POSTGRES2_DATABASE: "{{ filer_postgres_db }}"
+      WEED_POSTGRES2_USERNAME: "{{ filer_postgres_user }}"
+      WEED_POSTGRES2_PASSWORD: "{{ filer_postgres_password }}"
+{% endif %}
+    volumes:
+      - {{ filer_project_dir }}:/data
+    command:
+      - filer
+      - -master={{ masters }}
+      - -port={{ filer_port }}
+      - -ip={{ ansible_host }}
+{% if filer_s3_enabled %}
+      - -s3
+      - -s3.port={{ filer_s3_port }}
+{% endif %}

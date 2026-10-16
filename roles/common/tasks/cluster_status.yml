@@ -1,0 +1,13 @@
+---
+# Wait until a master reports that `seaweed_expected_node` ("ip:port") is part of the cluster.
+# Inputs: seaweed_expected_node, seaweed_status_path ("/cluster/status" or "/dir/status"), masters_list.
+- name: Wait for the node to appear in the cluster
+  ansible.builtin.uri:
+    url: "http://{{ masters_list | first }}{{ seaweed_status_path }}"
+    return_content: true
+  register: seaweed_cluster_status
+  until: seaweed_expected_node in (seaweed_cluster_status.json | default({}) | to_json)
+  retries: "{{ ((health_check_timeout | int) / 3) | round(0, 'ceil') | int }}"
+  delay: 3
+  changed_when: false
+  check_mode: false

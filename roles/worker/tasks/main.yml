@@ -1,0 +1,71 @@
+---
+- name: Validate worker variables
+  ansible.builtin.assert:
+    that:
+      - worker_node_num is defined
+      - worker_job_suffix is defined
+      - worker_job_index is defined
+      - worker_job_suffix in worker_jobs
+      - worker_job_type is defined
+      - worker_job_type == worker_jobs[worker_job_suffix].type
+      - (worker_job_index | int) >= 1
+      - (worker_job_index | int) <= worker_jobs[worker_job_suffix].instances
+    fail_msg: >-
+      worker_node_num, worker_job_suffix, worker_job_index and worker_job_type must be set for {{ inventory_hostname }},
+      the suffix must exist in worker_jobs, and the type and index must match it.
+    quiet: true
+
+- name: Check the image variant
+  ansible.builtin.include_role:
+    name: andreyhammer.seaweedfs_docker.common
+    tasks_from: image_guard
+  vars:
+    seaweed_guard_container: "{{ worker_container_name }}"
+
+- name: Check that the admin server is reachable
+  ansible.builtin.wait_for:
+    host: "{{ worker_admin_address.split(':') | first }}"
+    port: "{{ worker_admin_address.split(':') | last | int }}"
+    timeout: "{{ health_check_timeout }}"
+  when: not ansible_check_mode
+
+- name: Create the worker project directory
+  ansible.builtin.file:
+    path: "{{ worker_project_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Create the worker working directory
+  ansible.builtin.file:
+    path: "{{ worker_project_dir }}/data"
+    state: directory
+    mode: "0755"
+
+- name: Generate compose.yaml
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ worker_project_dir }}/compose.yaml"
+    mode: "0644"
+
+- name: Check whether the worker project exists
+  ansible.builtin.stat:
+    path: "{{ worker_project_dir }}/compose.yaml"
+  register: worker_compose_file
+
+# In check mode the project directory is not created, and docker compose cannot inspect a missing project.
+- name: Start the worker container
+  community.docker.docker_compose_v2:
+    project_src: "{{ worker_project_dir }}"
+    state: present
+    pull: missing
+  when: not ansible_check_mode or worker_compose_file.stat.exists
+
+- name: Verify the worker container is running
+  ansible.builtin.command: >-
+    docker inspect --format '{% raw %}{{.State.Running}}{% endraw %}' {{ worker_container_name }}
+  register: worker_container_state
+  until: worker_container_state.stdout | trim == 'true'
+  retries: "{{ ((health_check_timeout | int) / 3) | round(0, 'ceil') | int }}"
+  delay: 3
+  changed_when: false
+  when: not ansible_check_mode

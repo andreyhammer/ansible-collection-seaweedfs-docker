@@ -1,0 +1,11 @@
+---
+profile: production
+
+exclude_paths:
+  - CLAUDE.md
+  - tests/output/
+  - tests/integration/.work/
+
+skip_list:
+  # Variables shared across roles (container_prefix, seaweed_image, ...) intentionally have no role prefix.
+  - var-naming[no-role-prefix]

@@ -1,0 +1,23 @@
+---
+# The same tag is loaded into every node under two names so rolling_update can "upgrade" test-a -> test-b.
+seaweed_version: test-a
+seaweed_large_disk: false
+health_check_timeout: 90
+
+masters_list:
+  - 172.29.14.11:9333
+  - 172.29.14.12:9333
+  - 172.29.14.13:9333
+
+# Test nodes are privileged containers: never touch kernel settings that are not network-namespaced,
+# otherwise they would change the developer's host.
+common_sysctl:
+  net.core.somaxconn: 4096
+common_min_free_gb: 0
+
+# Tiny tmpfs disks: cap the number of volumes instead of letting SeaweedFS derive it from free space.
+volume_max_volumes: 5
+
+# Without a password the admin server listens on loopback only. Acceptable here: the nodes sit on an
+# isolated test network. Never copy this to a real inventory.
+admin_allow_insecure_bind: true

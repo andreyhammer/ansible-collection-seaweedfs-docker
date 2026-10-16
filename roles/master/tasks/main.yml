@@ -1,0 +1,63 @@
+---
+- name: Validate master variables
+  ansible.builtin.assert:
+    that:
+      - node_num is defined
+      - masters_list | length > 0
+    fail_msg: "node_num and masters_list must be set for {{ inventory_hostname }}."
+    quiet: true
+
+- name: Check the image variant
+  ansible.builtin.include_role:
+    name: andreyhammer.seaweedfs_docker.common
+    tasks_from: image_guard
+  vars:
+    seaweed_guard_container: "{{ master_container_name }}"
+
+- name: Create the master project directory
+  ansible.builtin.file:
+    path: "{{ master_project_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Generate compose.yaml
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ master_project_dir }}/compose.yaml"
+    mode: "0644"
+
+- name: Check whether the master project exists
+  ansible.builtin.stat:
+    path: "{{ master_project_dir }}/compose.yaml"
+  register: master_compose_file
+
+# In check mode the project directory is not created, and docker compose cannot inspect a missing project.
+- name: Start the master container
+  community.docker.docker_compose_v2:
+    project_src: "{{ master_project_dir }}"
+    state: present
+    pull: missing
+  when: not ansible_check_mode or master_compose_file.stat.exists
+
+- name: Wait for the master port
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: "{{ master_port }}"
+    timeout: "{{ health_check_timeout }}"
+  when: not ansible_check_mode
+
+# A master's /cluster/status lists the leader and its *other* peers, never itself, so ask the node
+# about its own view: it must see a leader and every other configured master.
+- name: Verify the master has joined the raft cluster
+  ansible.builtin.uri:
+    url: "http://{{ ansible_host }}:{{ master_port }}/cluster/status"
+    return_content: true
+  register: master_cluster_status
+  until:
+    - master_cluster_status.json.Leader | default('') | length > 0
+    - (master_cluster_status.json.Peers | default([]) | length) + 1 >= masters_list | length
+  retries: "{{ ((health_check_timeout | int) / 3) | round(0, 'ceil') | int }}"
+  delay: 3
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode

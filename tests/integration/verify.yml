@@ -1,0 +1,87 @@
+---
+# Checks the deployed test cluster. Pass -e expect_version=<tag> to assert the running image tag.
+- name: Verify containers
+  hosts: seaweed
+  gather_facts: false
+  tasks:
+    - name: Inspect the container
+      ansible.builtin.command: >-
+        docker inspect --format '{% raw %}{{.State.Running}} {{.Config.Image}}{% endraw %}' {{ inventory_hostname }}
+      register: verify_container
+      changed_when: false
+
+    - name: Assert the container runs the expected image
+      ansible.builtin.assert:
+        that: verify_container.stdout | trim == 'true ' ~ verify_expected_image
+      vars:
+        verify_expected_image: >-
+          {{ seaweed_image_repo | default('chrislusf/seaweedfs') }}:{{ expect_version | default(seaweed_version)
+          }}{{ '_large_disk' if seaweed_large_disk | default(false) | bool else '' }}
+        fail_msg: "{{ inventory_hostname }}: got '{{ verify_container.stdout }}'"
+        quiet: true
+
+- name: Verify the cluster through the API
+  hosts: localhost
+  gather_facts: false
+  vars:
+    verify_master: "http://{{ masters_list | first }}"
+  tasks:
+    - name: Read the cluster status
+      ansible.builtin.uri:
+        url: "{{ verify_master }}/cluster/status"
+        return_content: true
+      register: verify_cluster
+      until: verify_cluster.json.Leader | default('') | length > 0
+      retries: 20
+      delay: 3
+
+    - name: Assert all masters are in the raft group
+      ansible.builtin.assert:
+        that: (verify_cluster.json.Peers | default([]) | length) + 1 == groups['master'] | length
+        fail_msg: "Expected {{ groups['master'] | length }} masters, got {{ verify_cluster.json }}"
+        quiet: true
+
+    - name: Read the topology
+      ansible.builtin.uri:
+        url: "{{ verify_master }}/dir/status"
+        return_content: true
+      register: verify_topology
+      until: >-
+        (verify_topology.content | regex_findall('"Url":"[0-9.]+:80[0-9]+"') | unique | length)
+        == groups['volume'] | length
+      retries: 20
+      delay: 3
+
+    - name: Assign a file id
+      ansible.builtin.uri:
+        url: "{{ verify_master }}/dir/assign"
+        return_content: true
+      register: verify_assign
+
+    - name: Upload a test blob
+      ansible.builtin.uri:
+        url: "http://{{ verify_assign.json.url }}/{{ verify_assign.json.fid }}"
+        method: POST
+        body_format: form-multipart
+        body:
+          file:
+            content: swfs-integration-test
+            filename: test.txt
+            mime_type: text/plain
+        status_code: [200, 201]
+
+    - name: Read the test blob back
+      ansible.builtin.uri:
+        url: "http://{{ verify_assign.json.url }}/{{ verify_assign.json.fid }}"
+        return_content: true
+      register: verify_blob
+      failed_when: "'swfs-integration-test' not in verify_blob.content"
+
+    - name: Check the filer and admin ports
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[item.host].ansible_host }}"
+        port: "{{ item.port }}"
+        timeout: 20
+      loop:
+        - {host: filer01, port: 8888}
+        - {host: admin01, port: 23646}

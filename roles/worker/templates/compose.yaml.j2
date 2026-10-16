@@ -1,0 +1,19 @@
+# Managed by Ansible (andreyhammer.seaweedfs_docker). Do not edit.
+services:
+  worker:
+    image: {{ seaweed_image }}
+    container_name: {{ worker_container_name }}
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - {{ worker_project_dir }}/data:/data
+    command:
+      - worker
+      - -admin={{ worker_admin_address }}
+      - -id={{ worker_container_name }}
+      - -jobType={{ worker_job_type }}
+      - -workingDir=/data
+      - -maxExecute={{ worker_max_execute }}
+{% if worker_metrics_port | int > 0 %}
+      - -metricsPort={{ worker_metrics_port }}
+{% endif %}

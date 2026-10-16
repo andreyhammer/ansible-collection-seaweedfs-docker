@@ -1,0 +1,28 @@
+---
+seaweed_version: "latest"
+seaweed_image_repo: chrislusf/seaweedfs
+# seaweed_large_disk has no default on purpose: it must be set explicitly (see roles/common/tasks/image_variant.yml).
+seaweed_image: "{{ seaweed_image_repo }}:{{ seaweed_version }}{{ '_large_disk' if seaweed_large_disk | bool else '' }}"
+docker_compose_dir: /opt/seaweed
+container_prefix: ""
+container_role_filer: filer
+health_check_timeout: 60
+
+masters_list: []
+masters: "{{ masters_list | join(',') }}"
+
+filer_port: 8888
+filer_container_name: "{{ container_prefix }}{{ container_role_filer }}{{ '%02d' | format(node_num | int) }}"
+filer_project_dir: "{{ docker_compose_dir }}/{{ filer_container_name }}"
+
+# Optional S3 gateway (port 8333).
+filer_s3_enabled: false
+filer_s3_port: 8333
+
+# PostgreSQL metadata store. The password is read from the operator's environment.
+filer_postgres_enabled: false
+filer_postgres_host: ""
+filer_postgres_port: 5432
+filer_postgres_db: seaweedfs
+filer_postgres_user: seaweedfs
+filer_postgres_password: "{{ lookup('ansible.builtin.env', 'SEAWEED_FILER_POSTGRES_PASSWORD') }}"

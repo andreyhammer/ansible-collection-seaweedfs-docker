@@ -1,0 +1,24 @@
+---
+seaweed_version: "latest"
+seaweed_image_repo: chrislusf/seaweedfs
+# seaweed_large_disk has no default on purpose: it must be set explicitly (see roles/common/tasks/image_variant.yml).
+seaweed_image: "{{ seaweed_image_repo }}:{{ seaweed_version }}{{ '_large_disk' if seaweed_large_disk | bool else '' }}"
+docker_compose_dir: /opt/seaweed
+container_prefix: ""
+container_role_admin: admin
+health_check_timeout: 60
+
+masters_list: []
+masters: "{{ masters_list | join(',') }}"
+
+admin_port: 23646
+admin_container_name: "{{ container_prefix }}{{ container_role_admin }}{{ '%02d' | format(node_num | int) }}"
+admin_project_dir: "{{ docker_compose_dir }}/{{ admin_container_name }}"
+
+# The admin server listens on loopback only unless it is protected. To make it reachable (workers on other
+# nodes need that) set SEAWEED_ADMIN_PASSWORD (it then listens on all interfaces), or, for isolated trusted
+# networks only, admin_allow_insecure_bind: true (binds the node IP without authentication).
+admin_bind_ip: ""
+admin_allow_insecure_bind: false
+admin_password: "{{ lookup('ansible.builtin.env', 'SEAWEED_ADMIN_PASSWORD') }}"
+admin_exposed: "{{ admin_password | length > 0 or admin_bind_ip | length > 0 or admin_allow_insecure_bind | bool }}"

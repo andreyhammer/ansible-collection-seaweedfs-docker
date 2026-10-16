@@ -1,0 +1,17 @@
+---
+seaweed_version: "latest"
+seaweed_image_repo: chrislusf/seaweedfs
+# seaweed_large_disk has no default on purpose: it must be set explicitly (see roles/common/tasks/image_variant.yml).
+seaweed_image: "{{ seaweed_image_repo }}:{{ seaweed_version }}{{ '_large_disk' if seaweed_large_disk | bool else '' }}"
+docker_compose_dir: /opt/seaweed
+container_prefix: ""
+container_role_master: master
+health_check_timeout: 60
+
+# Required: list of "IP:PORT" for all masters.
+masters_list: []
+masters: "{{ masters_list | join(',') }}"
+
+master_port: 9333
+master_container_name: "{{ container_prefix }}{{ container_role_master }}{{ '%02d' | format(node_num | int) }}"
+master_project_dir: "{{ docker_compose_dir }}/{{ master_container_name }}"

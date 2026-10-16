@@ -1,0 +1,27 @@
+# Managed by Ansible (andreyhammer.seaweedfs_docker). Do not edit.
+services:
+  volume:
+    image: {{ seaweed_image }}
+    container_name: {{ volume_container_name }}
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+{% for dir in volume_data_dirs %}
+      - {{ dir }}:/data/disk{{ loop.index }}
+{% endfor %}
+      - {{ volume_index_dir_pattern }}:/cache
+    command:
+      - volume
+      - -master={{ masters }}
+      - -port={{ volume_port }}
+      - -ip={{ ansible_host }}
+      - -dir={% for dir in volume_data_dirs %}/data/disk{{ loop.index }}{{ ',' if not loop.last else '' }}{% endfor %}
+
+      - -dir.idx=/cache
+      - -disk={{ volume_disk_type }}
+{% if volume_rack | length > 0 %}
+      - -rack={{ volume_rack }}
+{% endif %}
+{% if volume_max_volumes | int != 0 %}
+      - -max={{ volume_max_volumes }}
+{% endif %}

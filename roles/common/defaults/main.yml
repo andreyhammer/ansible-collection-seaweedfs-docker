@@ -1,0 +1,30 @@
+---
+# Shared defaults. Other roles repeat the ones they use so that they work standalone.
+seaweed_version: "latest"
+seaweed_image_repo: chrislusf/seaweedfs
+# seaweed_large_disk has no default on purpose: it must be set explicitly (see roles/common/tasks/image_variant.yml).
+seaweed_image: "{{ seaweed_image_repo }}:{{ seaweed_version }}{{ '_large_disk' if seaweed_large_disk | bool else '' }}"
+docker_compose_dir: /opt/seaweed
+# DANGEROUS: allow replacing a running regular container with a large_disk one (or the reverse).
+# The two builds use different volume index formats; only set this for a deliberate, tested migration.
+seaweed_allow_variant_change: false
+container_prefix: ""
+health_check_timeout: 60
+
+# Base directories created on every node.
+common_base_dirs:
+  - "{{ docker_compose_dir }}"
+  - /data
+
+common_sysctl:
+  vm.swappiness: 10
+  net.core.somaxconn: 4096
+
+# Create this user when set (for containers that do not run as root).
+common_seaweed_user: ""
+
+# Minimum free space (GiB) required on every volume data dir.
+common_min_free_gb: 10
+
+# Disks to verify, normally taken from the volume alias variables.
+volume_data_dirs: []
