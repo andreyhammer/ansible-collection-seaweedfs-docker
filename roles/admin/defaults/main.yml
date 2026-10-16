@@ -19,6 +19,20 @@ admin_project_dir: "{{ docker_compose_dir }}/{{ admin_container_name }}"
 # nodes need that) set SEAWEED_ADMIN_PASSWORD (it then listens on all interfaces), or, for isolated trusted
 # networks only, admin_allow_insecure_bind: true (binds the node IP without authentication).
 admin_bind_ip: ""
+# Empty = SeaweedFS default user.
+admin_user: ""
 admin_allow_insecure_bind: false
 admin_password: "{{ lookup('ansible.builtin.env', 'SEAWEED_ADMIN_PASSWORD') }}"
 admin_exposed: "{{ admin_password | length > 0 or admin_bind_ip | length > 0 or admin_allow_insecure_bind | bool }}"
+
+# Extra options (all roles). *_extra_args are appended to the command; *_environment is merged over
+# seaweed_environment; *_extra_volumes are "host:container[:mode]" strings; *_config_files are deployed
+# to the node and mounted: [{src|content, dest, container_path, mode (0644), read_only (true), secret (false)}].
+seaweed_environment: {}
+seaweed_localtime: false
+seaweed_logging: {}
+admin_extra_args: []
+admin_environment: {}
+admin_extra_volumes: []
+admin_config_files: []
+admin_logging: "{{ seaweed_logging }}"

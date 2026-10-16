@@ -15,12 +15,24 @@ masters: "{{ masters_list | join(',') }}"
 # Per-alias variables (set in the inventory): volume_node_num, volume_dg, volume_data_dirs,
 # and optionally volume_rack and volume_disk_type.
 volume_disk_type_default: hdd
+# -max: 0 lets the server derive the volume count from free disk space.
 volume_max_volumes: 0
+# Empty = SeaweedFS default. Examples: leveldbLarge, dc1, 30, 5 (percent or GiB, see `weed volume -h`).
+volume_index_type: ""
+volume_data_center: ""
+volume_pre_stop_seconds: ""
+volume_min_free_space: ""
+# Set to /usr/bin/weed to bypass the image entrypoint (the container then runs as root).
+volume_entrypoint: ""
 
 # The image entrypoint only fixes ownership of /data itself, not of mounted /data/diskN or /cache,
 # so the host directories must belong to the container user (the image's `seaweed` user).
 volume_container_uid: 1000
 volume_container_gid: 1000
+# Refuse to start when a data or index dir holds files owned by someone else (skipped with volume_entrypoint).
+volume_check_ownership: true
+# Instead of refusing, recursively chown them. Can take long on full disks; a one-off migration aid.
+volume_fix_ownership: false
 volume_rack: ""
 volume_disk_type: "{{ volume_disk_type_default }}"
 volume_index_dir_pattern: "{{ docker_compose_dir }}/index-{{ volume_container_name }}"
@@ -36,3 +48,15 @@ volume_maintenance_enabled: "{{ volume_maintenance | default(false) }}"
 volume_maintenance_command: >-
   lock; volumeServer.state -nodes {{ ansible_host }}:{{ volume_port }}
   {{ '-maintenanceOn' if volume_maintenance_enabled | bool else '-maintenanceOff' }}; unlock
+
+# Extra options (all roles). *_extra_args are appended to the command; *_environment is merged over
+# seaweed_environment; *_extra_volumes are "host:container[:mode]" strings; *_config_files are deployed
+# to the node and mounted: [{src|content, dest, container_path, mode (0644), read_only (true), secret (false)}].
+seaweed_environment: {}
+seaweed_localtime: false
+seaweed_logging: {}
+volume_extra_args: []
+volume_environment: {}
+volume_extra_volumes: []
+volume_config_files: []
+volume_logging: "{{ seaweed_logging }}"

@@ -35,6 +35,13 @@
     state: directory
     mode: "0755"
 
+- name: Deploy config files
+  ansible.builtin.include_role:
+    name: andreyhammer.seaweedfs_docker.common
+    tasks_from: config_files
+  vars:
+    seaweed_config_files: "{{ admin_config_files }}"
+
 - name: Generate compose.yaml
   ansible.builtin.template:
     src: compose.yaml.j2
@@ -53,6 +60,7 @@
     project_src: "{{ admin_project_dir }}"
     state: present
     pull: missing
+    recreate: "{{ 'always' if seaweed_config_changed | default(false) | bool else 'auto' }}"
   when: not ansible_check_mode or admin_compose_file.stat.exists
 
 - name: Wait for the admin port

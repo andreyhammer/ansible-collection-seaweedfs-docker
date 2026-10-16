@@ -5,19 +5,28 @@ services:
     container_name: {{ filer_container_name }}
     network_mode: host
     restart: unless-stopped
-{% if filer_postgres_enabled %}
+{% set filer_env = seaweed_environment | combine(filer_environment | combine(filer_postgres_env if filer_postgres_enabled else {})) %}
+{% if filer_env | length > 0 %}
     environment:
-      # The built-in leveldb2 store is on by default and the filer refuses to run with two stores.
-      WEED_LEVELDB2_ENABLED: "false"
-      WEED_POSTGRES2_ENABLED: "true"
-      WEED_POSTGRES2_HOSTNAME: "{{ filer_postgres_host }}"
-      WEED_POSTGRES2_PORT: "{{ filer_postgres_port }}"
-      WEED_POSTGRES2_DATABASE: "{{ filer_postgres_db }}"
-      WEED_POSTGRES2_USERNAME: "{{ filer_postgres_user }}"
-      WEED_POSTGRES2_PASSWORD: "{{ filer_postgres_password }}"
+{% for key, value in filer_env.items() %}
+      {{ key }}: {{ value | string | replace('$', '$$') | to_json }}
+{% endfor %}
 {% endif %}
     volumes:
       - {{ filer_project_dir }}:/data
+{% for cfg in filer_config_files %}
+      - {{ cfg.dest }}:{{ cfg.container_path }}{{ ':ro' if cfg.read_only | default(true) | bool else '' }}
+{% endfor %}
+{% for item in filer_extra_volumes %}
+      - {{ item }}
+{% endfor %}
+{% if seaweed_localtime | bool %}
+      - /etc/localtime:/etc/localtime:ro
+{% endif %}
+{% if filer_logging | length > 0 %}
+    logging:
+{{ filer_logging | to_nice_yaml(indent=2) | trim | indent(6, true) }}
+{% endif %}
     command:
       - filer
       - -master={{ masters }}
@@ -26,4 +35,10 @@ services:
 {% if filer_s3_enabled %}
       - -s3
       - -s3.port={{ filer_s3_port }}
+{% if filer_s3_idle_timeout | string | length > 0 %}
+      - -s3.idleTimeout={{ filer_s3_idle_timeout }}
 {% endif %}
+{% endif %}
+{% for arg in filer_extra_args %}
+      - {{ arg | string | replace('$', '$$') | to_json }}
+{% endfor %}

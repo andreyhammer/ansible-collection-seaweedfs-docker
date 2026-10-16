@@ -4,7 +4,11 @@
     that:
       - node_num is defined
       - masters_list | length > 0
-    fail_msg: "node_num and masters_list must be set for {{ inventory_hostname }}."
+      - masters_list | length is odd
+    fail_msg: >-
+      node_num and masters_list must be set for {{ inventory_hostname }}, and masters_list must contain an odd
+      number of masters (it has {{ masters_list | length }}): SeaweedFS refuses to start masters with an even list.
+      Add or remove masters in pairs.
     quiet: true
 
 - name: Check the image variant
@@ -20,11 +24,18 @@
     state: directory
     mode: "0755"
 
+- name: Deploy config files
+  ansible.builtin.include_role:
+    name: andreyhammer.seaweedfs_docker.common
+    tasks_from: config_files
+  vars:
+    seaweed_config_files: "{{ master_config_files }}"
+
 - name: Generate compose.yaml
   ansible.builtin.template:
     src: compose.yaml.j2
     dest: "{{ master_project_dir }}/compose.yaml"
-    mode: "0644"
+    mode: "0600"
 
 - name: Check whether the master project exists
   ansible.builtin.stat:
@@ -37,6 +48,7 @@
     project_src: "{{ master_project_dir }}"
     state: present
     pull: missing
+    recreate: "{{ 'always' if seaweed_config_changed | default(false) | bool else 'auto' }}"
   when: not ansible_check_mode or master_compose_file.stat.exists
 
 - name: Wait for the master port

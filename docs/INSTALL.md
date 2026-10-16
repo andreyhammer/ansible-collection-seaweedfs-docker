@@ -107,9 +107,38 @@ What `add_node` does and does not do:
 - New volume servers receive new writes at once. **Existing data is not moved**: redistribute volumes with SeaweedFS's
   own tools (for example `volume.balance` in `weed shell`), which is outside this collection and not covered by the
   tests.
-- **Adding a master is different** and is not handled by `add_node`: every master is started with the full list of
-  masters (`-peers`), so the list in `masters_list` changes for all of them. This case has not been tested. Do not use
-  `add_node` for a new master without rehearsing it on a copy first.
+- Adding a **master** needs extra steps, see the next section.
+
+## Add masters
+
+SeaweedFS refuses to start masters with an **even** list (`Only odd number of masters are supported`), so masters are
+added **in pairs** (3 to 5). The roles reject an even `masters_list` before touching anything.
+
+1. Prepare the new nodes as above and add two aliases to the `master` group, each with `node_num` and the node's IP
+   (for example `master04` and `master05`).
+2. Extend `masters_list` with both (`IP:9333`), so that it lists all five masters.
+3. Start the new masters:
+
+   ```bash
+   ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.add_node -e target_node=master04,master05
+   ```
+
+   They find the running leader and join the raft group by themselves; no manual raft commands are needed.
+   `http://<master-ip>:9333/cluster/status` now lists five masters.
+4. Make the existing services use the new list. Every service carries the masters list in its `compose.yaml`
+   (`-peers` for masters, `-master` for the rest), so refresh them one group at a time with the version that is
+   already deployed; the leader is restarted last:
+
+   ```bash
+   for group in master filer admin volume worker; do
+     ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.rolling_update \
+       -e seaweed_version=<current version> -e target_group=$group
+   done
+   ```
+5. Run `site` once more: it must report no changes.
+
+Going from three masters to five was tested end to end. **Removing or replacing a master is not covered** by the
+collection and has not been tested; every intermediate state must keep an odd number of masters.
 
 ## Try it safely first
 

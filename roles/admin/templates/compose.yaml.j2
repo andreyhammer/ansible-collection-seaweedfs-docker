@@ -5,8 +5,28 @@ services:
     container_name: {{ admin_container_name }}
     network_mode: host
     restart: unless-stopped
+{% set admin_env = seaweed_environment | combine(admin_environment) %}
+{% if admin_env | length > 0 %}
+    environment:
+{% for key, value in admin_env.items() %}
+      {{ key }}: {{ value | string | replace('$', '$$') | to_json }}
+{% endfor %}
+{% endif %}
     volumes:
       - {{ admin_project_dir }}:/data
+{% for cfg in admin_config_files %}
+      - {{ cfg.dest }}:{{ cfg.container_path }}{{ ':ro' if cfg.read_only | default(true) | bool else '' }}
+{% endfor %}
+{% for item in admin_extra_volumes %}
+      - {{ item }}
+{% endfor %}
+{% if seaweed_localtime | bool %}
+      - /etc/localtime:/etc/localtime:ro
+{% endif %}
+{% if admin_logging | length > 0 %}
+    logging:
+{{ admin_logging | to_nice_yaml(indent=2) | trim | indent(6, true) }}
+{% endif %}
     command:
       - admin
       - -master={{ masters }}
@@ -20,6 +40,12 @@ services:
 {% if admin_allow_insecure_bind | bool %}
       - -allowInsecureBind
 {% endif %}
-{% if admin_password | length > 0 %}
-      - -adminPassword={{ admin_password }}
+{% if admin_user | length > 0 %}
+      - -adminUser={{ admin_user }}
 {% endif %}
+{% if admin_password | length > 0 %}
+      - -adminPassword={{ admin_password | replace('$', '$$') }}
+{% endif %}
+{% for arg in admin_extra_args %}
+      - {{ arg | string | replace('$', '$$') | to_json }}
+{% endfor %}

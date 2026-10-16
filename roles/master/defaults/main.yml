@@ -13,5 +13,20 @@ masters_list: []
 masters: "{{ masters_list | join(',') }}"
 
 master_port: 9333
+# Empty = SeaweedFS default (000 and 30000). Example: "010" and 30000.
+master_default_replication: ""
+master_volume_size_limit_mb: ""
 master_container_name: "{{ container_prefix }}{{ container_role_master }}{{ '%02d' | format(node_num | int) }}"
 master_project_dir: "{{ docker_compose_dir }}/{{ master_container_name }}"
+
+# Extra options (all roles). *_extra_args are appended to the command; *_environment is merged over
+# seaweed_environment; *_extra_volumes are "host:container[:mode]" strings; *_config_files are deployed
+# to the node and mounted: [{src|content, dest, container_path, mode (0644), read_only (true), secret (false)}].
+seaweed_environment: {}
+seaweed_localtime: false
+seaweed_logging: {}
+master_extra_args: []
+master_environment: {}
+master_extra_volumes: []
+master_config_files: []
+master_logging: "{{ seaweed_logging }}"

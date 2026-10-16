@@ -2,6 +2,15 @@
 - name: Validate the image variant setting
   ansible.builtin.include_tasks: image_variant.yml
 
+- name: Check the number of masters
+  ansible.builtin.assert:
+    that: masters_list | length is odd
+    fail_msg: >-
+      masters_list has {{ masters_list | length }} entries. SeaweedFS refuses to start masters with an even list
+      ("Only odd number of masters are supported"); add or remove masters in pairs.
+    quiet: true
+  when: masters_list | default([]) | length > 0
+
 - name: Check that Docker Engine is installed
   ansible.builtin.command: docker --version
   register: common_docker_version

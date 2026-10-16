@@ -5,11 +5,34 @@ services:
     container_name: {{ volume_container_name }}
     network_mode: host
     restart: unless-stopped
+{% if volume_entrypoint | length > 0 %}
+    entrypoint: {{ volume_entrypoint }}
+{% endif %}
+{% set volume_env = seaweed_environment | combine(volume_environment) %}
+{% if volume_env | length > 0 %}
+    environment:
+{% for key, value in volume_env.items() %}
+      {{ key }}: {{ value | string | replace('$', '$$') | to_json }}
+{% endfor %}
+{% endif %}
     volumes:
 {% for dir in volume_data_dirs %}
       - {{ dir }}:/data/disk{{ loop.index }}
 {% endfor %}
       - {{ volume_index_dir_pattern }}:/cache
+{% for cfg in volume_config_files %}
+      - {{ cfg.dest }}:{{ cfg.container_path }}{{ ':ro' if cfg.read_only | default(true) | bool else '' }}
+{% endfor %}
+{% for item in volume_extra_volumes %}
+      - {{ item }}
+{% endfor %}
+{% if seaweed_localtime | bool %}
+      - /etc/localtime:/etc/localtime:ro
+{% endif %}
+{% if volume_logging | length > 0 %}
+    logging:
+{{ volume_logging | to_nice_yaml(indent=2) | trim | indent(6, true) }}
+{% endif %}
     command:
       - volume
       - -master={{ masters }}
@@ -22,6 +45,19 @@ services:
 {% if volume_rack | length > 0 %}
       - -rack={{ volume_rack }}
 {% endif %}
-{% if volume_max_volumes | int != 0 %}
       - -max={{ volume_max_volumes }}
+{% if volume_index_type | length > 0 %}
+      - -index={{ volume_index_type }}
 {% endif %}
+{% if volume_data_center | length > 0 %}
+      - -dataCenter={{ volume_data_center }}
+{% endif %}
+{% if volume_pre_stop_seconds | string | length > 0 %}
+      - -preStopSeconds={{ volume_pre_stop_seconds }}
+{% endif %}
+{% if volume_min_free_space | string | length > 0 %}
+      - -minFreeSpace={{ volume_min_free_space }}
+{% endif %}
+{% for arg in volume_extra_args %}
+      - {{ arg | string | replace('$', '$$') | to_json }}
+{% endfor %}

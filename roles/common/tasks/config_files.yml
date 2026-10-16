@@ -1,0 +1,27 @@
+---
+# Deploys the files listed in seaweed_config_files (each: src or content, dest, optional mode, secret).
+# Sets seaweed_config_changed so the calling role recreates the container when a file changed.
+- name: Create config directories
+  ansible.builtin.file:
+    path: "{{ item.dest | dirname }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ seaweed_config_files }}"
+  loop_control:
+    label: "{{ item.dest }}"
+
+- name: Deploy config files
+  ansible.builtin.copy:
+    src: "{{ item.src | default(omit) }}"
+    content: "{{ item.content | default(omit) }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode | default('0644') }}"
+  loop: "{{ seaweed_config_files }}"
+  loop_control:
+    label: "{{ item.dest }}"
+  register: seaweed_config_result
+  no_log: "{{ item.secret | default(false) | bool }}"
+
+- name: Remember whether a config file changed
+  ansible.builtin.set_fact:
+    seaweed_config_changed: "{{ seaweed_config_result.changed | default(false) }}"

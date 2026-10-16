@@ -5,15 +5,38 @@ services:
     container_name: {{ worker_container_name }}
     network_mode: host
     restart: unless-stopped
+{% set worker_env = seaweed_environment | combine(worker_environment) %}
+{% if worker_env | length > 0 %}
+    environment:
+{% for key, value in worker_env.items() %}
+      {{ key }}: {{ value | string | replace('$', '$$') | to_json }}
+{% endfor %}
+{% endif %}
     volumes:
       - {{ worker_project_dir }}/data:/data
+{% for cfg in worker_config_files %}
+      - {{ cfg.dest }}:{{ cfg.container_path }}{{ ':ro' if cfg.read_only | default(true) | bool else '' }}
+{% endfor %}
+{% for item in worker_extra_volumes %}
+      - {{ item }}
+{% endfor %}
+{% if seaweed_localtime | bool %}
+      - /etc/localtime:/etc/localtime:ro
+{% endif %}
+{% if worker_logging | length > 0 %}
+    logging:
+{{ worker_logging | to_nice_yaml(indent=2) | trim | indent(6, true) }}
+{% endif %}
     command:
       - worker
       - -admin={{ worker_admin_address }}
-      - -id={{ worker_container_name }}
+      - -id={{ worker_id }}
       - -jobType={{ worker_job_type }}
       - -workingDir=/data
       - -maxExecute={{ worker_max_execute }}
 {% if worker_metrics_port | int > 0 %}
       - -metricsPort={{ worker_metrics_port }}
 {% endif %}
+{% for arg in worker_extra_args %}
+      - {{ arg | string | replace('$', '$$') | to_json }}
+{% endfor %}

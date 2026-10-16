@@ -2,7 +2,7 @@
 # Integration tests on disposable Docker-in-Docker nodes. Nothing here touches real hosts.
 #
 #   ./run.sh test     full run: up, deploy, verify, idempotence, rolling update, down
-#   ./run.sh up|deploy|verify|idempotence|dryrun|addnode|maintenance|failpath|guard|update|down|shell <node>
+#   ./run.sh up|deploy|verify|idempotence|dryrun|addnode|masters|maintenance|failpath|guard|update|down|shell <node>
 #
 # Env: KEEP=1 keeps the nodes after `test`.
 #      SEAWEED_TEST_LARGE_DISK=1 tests the official large_disk build instead of the regular one.
@@ -12,7 +12,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 HERE=$PWD
 WORK=$HERE/.work
-NODES=(node01 node02 node03 node04)   # node04 is the "new hardware" added with add_node
+NODES=(node01 node02 node03 node04 node05)   # node04 is "new hardware" added with add_node, node05 only hosts a master
 MASTER_NODES=(node01 node02 node03)
 if [[ ${SEAWEED_TEST_LARGE_DISK:-0} == 1 ]]; then
     TAG_SUFFIX=_large_disk
@@ -170,17 +170,46 @@ check_leader_last() {
     echo "  OK the leader ($leader) was upgraded last"
 }
 
-update() {
-    # Upgrade order: masters, filer, admin, volume, workers; one group per invocation.
-    local group
-    local leader_before
+# One rolling_update per group, in the documented order; the master leader must be restarted last.
+rolling_all() {
+    local version=$1 group leader_before
     for group in master filer admin volume worker; do
         [[ $group == master ]] && leader_before=$(master_leader_node)
-        log "Rolling update ${group} -> test-b${TAG_SUFFIX}"
-        ansible-playbook "$COLLECTION.rolling_update" "${EXTRA_VARS[@]}" -e seaweed_version=test-b -e "target_group=${group}"
+        log "Rolling update ${group} -> ${version}${TAG_SUFFIX}"
+        ansible-playbook "$COLLECTION.rolling_update" "${EXTRA_VARS[@]}" -e "seaweed_version=${version}" -e "target_group=${group}"
         [[ $group == master ]] && check_leader_last "$leader_before"
     done
     return 0
+}
+
+update() {
+    rolling_all test-b
+}
+
+# Add two masters (SeaweedFS needs an odd number): new masters join by themselves, the existing services are then
+# refreshed one by one so that they all know the new list.
+add_masters() {
+    local out peers
+    log "Add masters: an even masters_list must be rejected"
+    if out=$(ansible-playbook "$COLLECTION.add_node" "${EXTRA_VARS[@]}" -i "$HERE/inventory/hosts.yml" -i "$HERE/inventory-masters/hosts.yml" \
+        -e target_node=master04 -e '{"masters_list":["172.29.14.11:9333","172.29.14.12:9333","172.29.14.13:9333","172.29.14.14:9333"]}' 2>&1); then
+        fail "a four-master list was accepted" || return 1
+    fi
+    grep -q 'refuses to start masters with an even list' <<<"$out" || { tail -15 <<<"$out" >&2; fail "rejected, but not for the right reason" || return 1; }
+    echo "OK: an even number of masters is rejected"
+
+    log "Add masters: master04 (on node04) and master05 (on the new node05) join the running cluster"
+    export ANSIBLE_INVENTORY="$HERE/inventory/hosts.yml,$HERE/inventory-masters/hosts.yml"
+    EXTRA_VARS+=(-e "@$HERE/inventory-masters/masters5.yml")
+    MASTER_NODES+=(node04 node05)
+    ansible-playbook "$COLLECTION.add_node" "${EXTRA_VARS[@]}" -e target_node=master04,master05
+    peers=$(curl -sf http://172.29.14.11:9333/cluster/status | python3 -c 'import sys,json;print(len(json.load(sys.stdin)["Peers"])+1)')
+    [[ $peers == 5 ]] || fail "the cluster has $peers masters, expected 5" || return 1
+    echo "  OK the cluster has 5 masters"
+
+    log "Add masters: refresh the existing services so that they use the new list (leader last)"
+    rolling_all test-a
+    verify test-a
 }
 
 running_containers() {
@@ -233,7 +262,7 @@ assign_distribution() {
 
 deploy_partial() {
     log "Deploy everything except new hardware (node04) and two aliases on an existing node (added later with add_node)"
-    ansible-playbook "$COLLECTION.site" "${EXTRA_VARS[@]}" --limit 'all:!node04:!volume03-dg02:!worker02-vacuum01'
+    ansible-playbook "$COLLECTION.site" "${EXTRA_VARS[@]}" --limit 'all:!node04:!node05:!volume03-dg02:!worker02-vacuum01'
 }
 
 add_nodes() {
@@ -326,6 +355,23 @@ guard() {
     echo "OK: missing seaweed_large_disk rejected"
 }
 
+ownership() {
+    log "Ownership: a foreign file on a data disk must stop the deployment, and volume_fix_ownership repairs it"
+    docker exec swfs-test-node01 sh -c 'touch /mnt/disk01/foreign.dat && chown 0:0 /mnt/disk01/foreign.dat'
+    local out
+    if out=$(ansible-playbook "$COLLECTION.site" "${EXTRA_VARS[@]}" --limit volume01-dg01 2>&1); then
+        echo "FAIL: a foreign file was not detected" >&2
+        return 1
+    fi
+    grep -q 'holds files not owned by 1000:1000' <<<"$out" || { echo "FAIL: wrong error" >&2; tail -20 <<<"$out" >&2; return 1; }
+    echo "OK: foreign file detected"
+    ansible-playbook "$COLLECTION.site" "${EXTRA_VARS[@]}" --limit volume01-dg01 -e volume_fix_ownership=true
+    [[ $(docker exec swfs-test-node01 stat -c %u:%g /mnt/disk01/foreign.dat) == 1000:1000 ]] \
+        || { echo "FAIL: ownership was not repaired" >&2; return 1; }
+    docker exec swfs-test-node01 rm -f /mnt/disk01/foreign.dat
+    echo "OK: ownership repaired"
+}
+
 down() {
     log "Removing test nodes and volumes"
     docker compose down -v --remove-orphans
@@ -340,6 +386,7 @@ case ${1:-test} in
     addnode) deploy_partial; add_nodes ;;
     maintenance) maintenance_effect ;;
     failpath) failpath ;;
+    masters) add_masters ;;
     guard) guard ;;
     update) update ;;
     down) down ;;
@@ -353,7 +400,10 @@ case ${1:-test} in
         verify test-a
         idempotence
         dryrun_live
+        add_masters
+        idempotence
         guard
+        ownership
         maintenance_effect
         failpath
         update

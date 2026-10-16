@@ -28,6 +28,8 @@ worker_jobs:
     instances: 1
 
 worker_max_execute: 1
+# Worker id shown in the admin UI; defaults to the container name.
+worker_id: "{{ worker_container_name }}"
 # 0 disables metrics.
 worker_metrics_port: 0
 
@@ -36,3 +38,15 @@ worker_container_name: >-
   {{ container_prefix }}{{ container_role_worker }}{{ '%02d' | format(worker_node_num | int) }}
   {{- '-' ~ worker_job_suffix ~ ('%02d' | format(worker_job_index | int)) }}
 worker_project_dir: "{{ docker_compose_dir }}/{{ worker_container_name }}"
+
+# Extra options (all roles). *_extra_args are appended to the command; *_environment is merged over
+# seaweed_environment; *_extra_volumes are "host:container[:mode]" strings; *_config_files are deployed
+# to the node and mounted: [{src|content, dest, container_path, mode (0644), read_only (true), secret (false)}].
+seaweed_environment: {}
+seaweed_localtime: false
+seaweed_logging: {}
+worker_extra_args: []
+worker_environment: {}
+worker_extra_volumes: []
+worker_config_files: []
+worker_logging: "{{ seaweed_logging }}"

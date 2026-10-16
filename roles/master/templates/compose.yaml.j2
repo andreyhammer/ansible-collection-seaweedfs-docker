@@ -5,11 +5,40 @@ services:
     container_name: {{ master_container_name }}
     network_mode: host
     restart: unless-stopped
+{% set master_env = seaweed_environment | combine(master_environment) %}
+{% if master_env | length > 0 %}
+    environment:
+{% for key, value in master_env.items() %}
+      {{ key }}: {{ value | string | replace('$', '$$') | to_json }}
+{% endfor %}
+{% endif %}
     volumes:
       - {{ master_project_dir }}:/data
+{% for cfg in master_config_files %}
+      - {{ cfg.dest }}:{{ cfg.container_path }}{{ ':ro' if cfg.read_only | default(true) | bool else '' }}
+{% endfor %}
+{% for item in master_extra_volumes %}
+      - {{ item }}
+{% endfor %}
+{% if seaweed_localtime | bool %}
+      - /etc/localtime:/etc/localtime:ro
+{% endif %}
+{% if master_logging | length > 0 %}
+    logging:
+{{ master_logging | to_nice_yaml(indent=2) | trim | indent(6, true) }}
+{% endif %}
     command:
       - master
       - -port={{ master_port }}
       - -ip={{ ansible_host }}
       - -mdir=/data
       - -peers={{ masters }}
+{% if master_default_replication | length > 0 %}
+      - -defaultReplication={{ master_default_replication }}
+{% endif %}
+{% if master_volume_size_limit_mb | string | length > 0 %}
+      - -volumeSizeLimitMB={{ master_volume_size_limit_mb }}
+{% endif %}
+{% for arg in master_extra_args %}
+      - {{ arg | string | replace('$', '$$') | to_json }}
+{% endfor %}

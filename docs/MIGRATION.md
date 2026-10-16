@@ -48,7 +48,9 @@ Not tested. If you try it, do it on a copy first and note the following:
   an existing container with the same name that it did not create, so the old containers have to be stopped and
   removed first. That means downtime for the instance, one instance at a time.
 - Data and index directories keep their contents, but they must be owned by the container user
-  (`volume_container_uid` / `volume_container_gid`, 1000 for the official image).
+  (`volume_container_uid` / `volume_container_gid`, 1000 for the official image). The volume role checks this before
+  starting a container and stops at the first offending file; `-e volume_fix_ownership=true` repairs it with a
+  recursive chown (tested on a tiny disk only, it can take long on full ones).
 - The ports and the master `-peers` list must match what the roles generate, or the cluster will not re-form.
 - Use the same image build the data was written with (`seaweed_large_disk`).
 

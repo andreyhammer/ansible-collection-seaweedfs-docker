@@ -85,3 +85,37 @@
       loop:
         - {host: filer01, port: 8888}
         - {host: admin01, port: 23646}
+
+- name: Verify the extra options reach the containers
+  hosts: master01:volume01-dg01:filer01
+  gather_facts: false
+  tasks:
+    - name: Inspect the container
+      ansible.builtin.command: >-
+        docker inspect {{ inventory_hostname }}
+        --format '{% raw %}{{json .Args}}|{{json .Config.Env}}|{{json .HostConfig.Binds}}|
+        {{.HostConfig.LogConfig.Type}}{% endraw %}'
+      register: verify_opts
+      changed_when: false
+
+    - name: Assert the options
+      ansible.builtin.assert:
+        that: "item in verify_opts.stdout"
+        quiet: true
+      loop: >-
+        {{ common_checks + (host_checks[group_names | intersect(['master', 'volume', 'filer']) | first]) }}
+      vars:
+        common_checks: ["GRPC_GO_RECV_BUFFER_SIZE=1048576", "/etc/localtime:/etc/localtime:ro", "json-file"]
+        host_checks:
+          master: ["-defaultReplication=000", "-volumeSizeLimitMB=64"]
+          volume:
+            - "-index=leveldbLarge"
+            - "-dataCenter=dc1"
+            - "-preStopSeconds=5"
+            - "-minFreeSpace=1"
+            - "-max=5"
+            - "-readMode=proxy"
+          filer:
+            - "-s3.idleTimeout=3600"
+            - "S3_EXTERNAL_URL=http://s3.test.local:8333"
+            - "/opt/seaweed/config/filer-test.conf:/etc/seaweedfs/filer-test.conf:ro"

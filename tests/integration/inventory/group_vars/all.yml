@@ -24,3 +24,25 @@ volume_max_volumes: 5
 filer_postgres_enabled: true
 filer_postgres_host: 172.29.14.11
 filer_s3_enabled: true
+
+# Extra options: every one of them is checked against the running containers in verify.yml.
+seaweed_environment:
+  GRPC_GO_RECV_BUFFER_SIZE: "1048576"
+seaweed_localtime: true
+seaweed_logging:
+  driver: json-file
+  options: {max-size: 10m, max-file: "3"}
+master_default_replication: "000"
+master_volume_size_limit_mb: 64
+volume_index_type: leveldbLarge
+volume_data_center: dc1
+volume_pre_stop_seconds: 5
+volume_min_free_space: 1
+volume_extra_args: ["-readMode=proxy"]
+filer_s3_idle_timeout: 3600
+filer_environment:
+  S3_EXTERNAL_URL: "http://s3.test.local:8333"
+filer_config_files:
+  - content: "# integration test\n"
+    dest: /opt/seaweed/config/filer-test.conf
+    container_path: /etc/seaweedfs/filer-test.conf

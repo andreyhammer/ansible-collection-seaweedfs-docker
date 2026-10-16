@@ -34,6 +34,48 @@ Ports: master 9333, filer 8888 (S3 8333 if enabled), admin 23646, volume `8080 +
 | `seaweed_image` | derived | Overriding it requires a matching `seaweed_large_disk` |
 | `seaweed_allow_variant_change` | `false` | See MIGRATION.md before touching it |
 
+## Extra options (all roles)
+
+Any flag, environment variable, mount or config file that has no dedicated variable can still be set. Replace
+`<role>` with `master`, `filer`, `admin`, `volume` or `worker`; the settings can be given per group or per alias.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `<role>_extra_args` | `[]` | Appended to the `weed` command, e.g. `["-options=/etc/seaweedfs/filer.toml"]` |
+| `<role>_environment` | `{}` | Merged over `seaweed_environment` (set it once for gRPC tuning on every container) |
+| `<role>_extra_volumes` | `[]` | `"host:container[:mode]"` strings |
+| `<role>_config_files` | `[]` | Files deployed to the node and mounted, see below |
+| `<role>_logging` | `seaweed_logging` | Compose `logging:` block, e.g. `{driver: json-file, options: {max-size: 10m, max-file: "3"}}` |
+| `seaweed_localtime` | `false` | Mount `/etc/localtime` read-only into every container |
+| `admin_user` | `""` | `-adminUser` |
+| `worker_id` | container name | `-id` |
+| `filer_s3_idle_timeout` | `""` | `-s3.idleTimeout` |
+
+A config file entry is `{src or content, dest, container_path, mode: "0644", read_only: true, secret: false}`:
+`src` is a file on the control node, `dest` the path on the managed node. `secret: true` hides the content from the
+log. Files are owned by root, so a file the container must read needs `mode: "0644"` (the image drops to uid 1000). When a config file changes, the container is recreated on that run. Values
+containing `$` are escaped for Compose automatically.
+
+Example, covering a typical hand-written cluster:
+
+```yaml
+seaweed_environment:
+  GRPC_GO_KEEPALIVE_TIME_MS: "20000"
+seaweed_localtime: true
+seaweed_logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
+master_default_replication: "010004"
+master_volume_size_limit_mb: 30000
+master_config_files:
+  - {src: files/master.toml, dest: /opt/seaweed/config/master/master.toml, container_path: /etc/seaweedfs/master.toml}
+volume_index_type: leveldbLarge
+volume_data_center: dc1
+volume_pre_stop_seconds: 30
+volume_min_free_space: 5
+volume_entrypoint: /usr/bin/weed
+filer_extra_args: ["-options=/etc/seaweedfs/filer.toml"]
+filer_s3_idle_timeout: 3600
+```
+
 ## Common
 
 | Variable | Default | Notes |
@@ -53,6 +95,8 @@ Ports: master 9333, filer 8888 (S3 8333 if enabled), admin 23646, volume `8080 +
 | `masters_list` | `[]`, **required** | `["10.0.0.11:9333", ...]` |
 | `node_num` | required per alias | Node number |
 | `master_port` | `9333` | |
+| `master_default_replication` | `""` | `-defaultReplication`, e.g. `"010"`; empty = SeaweedFS default |
+| `master_volume_size_limit_mb` | `""` | `-volumeSizeLimitMB`; empty = SeaweedFS default |
 
 The container is started with `-peers` set to the full list, so every master must be in `masters_list`.
 
@@ -92,8 +136,15 @@ and `volume_disk_type`.
 | Variable | Default | Notes |
 |---|---|---|
 | `volume_disk_type_default` | `hdd` | Used when an alias has no `volume_disk_type` |
-| `volume_max_volumes` | `0` | `0` leaves `-max` unset (SeaweedFS derives it from free space) |
+| `volume_max_volumes` | `0` | Always passed as `-max`; `0` lets SeaweedFS derive it from free space |
+| `volume_index_type` | `""` | `-index`, e.g. `leveldbLarge` |
+| `volume_data_center` | `""` | `-dataCenter` |
+| `volume_pre_stop_seconds` | `""` | `-preStopSeconds` |
+| `volume_min_free_space` | `""` | `-minFreeSpace` |
+| `volume_entrypoint` | `""` | e.g. `/usr/bin/weed` to bypass the image entrypoint (the container then runs as root) |
 | `volume_container_uid` / `_gid` | `1000` / `1000` | Owner of the data and index directories on the host, matching the image's `seaweed` user |
+| `volume_check_ownership` | `true` | Before starting, fail if a data or index dir holds files not owned by the container user (skipped when `volume_entrypoint` is set) |
+| `volume_fix_ownership` | `false` | Recursively chown such files instead of failing; can take long on full disks |
 | `volume_index_dir_pattern` | `<docker_compose_dir>/index-<container_name>` | Index directory on the host |
 
 The data directories are mounted as `/data/disk1`, `/data/disk2`, ... and the index directory as `/cache`.
@@ -110,4 +161,4 @@ Per alias: `worker_node_num`, `worker_job_suffix`, `worker_job_index`, `worker_j
 | `worker_metrics_port` | `0` | `0` disables metrics; set per alias to give each worker its own port |
 
 Default `worker_jobs`: `ec` (`erasure_coding`, 2), `balance` (`ec_balance`, 1), `lifecycle` (`s3_lifecycle`, 1),
-`vacuum` (`vacuum`, 1). The worker id is the container name.
+`vacuum` (`vacuum`, 1). The worker id (`-id`) is `worker_id`, by default the container name.

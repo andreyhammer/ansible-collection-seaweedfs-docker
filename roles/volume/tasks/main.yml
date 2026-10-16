@@ -47,11 +47,67 @@
     group: "{{ volume_container_gid }}"
     mode: "0755"
 
+- name: Deploy config files
+  ansible.builtin.include_role:
+    name: andreyhammer.seaweedfs_docker.common
+    tasks_from: config_files
+  vars:
+    seaweed_config_files: "{{ volume_config_files }}"
+
+# The official entrypoint chowns only /data, so files that already sit on a mounted disk (for example data written
+# by containers that ran as root) stay unreadable for uid 1000. Catch that before the container starts.
+- name: Look for files not owned by the container user
+  ansible.builtin.command:
+    argv:
+      - find
+      - "{{ item }}"
+      - -mindepth
+      - "1"
+      - "!"
+      - "("
+      - -uid
+      - "{{ volume_container_uid }}"
+      - -gid
+      - "{{ volume_container_gid }}"
+      - ")"
+      - -print
+      - -quit
+  loop: "{{ volume_data_dirs + [volume_index_dir_pattern] }}"
+  register: volume_foreign_files
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: volume_check_ownership | bool and volume_entrypoint | length == 0
+
+- name: Fix ownership of existing files
+  ansible.builtin.file:
+    path: "{{ item.item }}"
+    state: directory
+    recurse: true
+    owner: "{{ volume_container_uid }}"
+    group: "{{ volume_container_gid }}"
+  loop: "{{ volume_foreign_files.results | default([]) | selectattr('stdout', 'truthy') }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: volume_fix_ownership | bool
+
+- name: Fail on files not owned by the container user
+  ansible.builtin.fail:
+    msg: >-
+      {{ item.item }} holds files not owned by {{ volume_container_uid }}:{{ volume_container_gid }}
+      (first one: {{ item.stdout }}). The container would not be able to use them. Fix it with
+      `chown -R {{ volume_container_uid }}:{{ volume_container_gid }} {{ item.item }}` or run with
+      -e volume_fix_ownership=true.
+  loop: "{{ volume_foreign_files.results | default([]) | selectattr('stdout', 'truthy') }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: volume_check_ownership | bool and not volume_fix_ownership | bool
+
 - name: Generate compose.yaml
   ansible.builtin.template:
     src: compose.yaml.j2
     dest: "{{ volume_project_dir }}/compose.yaml"
-    mode: "0644"
+    mode: "0600"
 
 - name: Check whether the volume project exists
   ansible.builtin.stat:
@@ -64,6 +120,7 @@
     project_src: "{{ volume_project_dir }}"
     state: present
     pull: missing
+    recreate: "{{ 'always' if seaweed_config_changed | default(false) | bool else 'auto' }}"
   when: not ansible_check_mode or volume_compose_file.stat.exists
 
 - name: Wait for the volume port
