@@ -37,7 +37,7 @@ pointing at its parent) because roles are referenced by their FQCN.
 
 ## Prepare the inventory
 
-Copy `inventory/production/` and adapt it. The essentials:
+Copy `examples/inventory/` and adapt it. The essentials:
 
 1. One inventory alias **per container**, with `ansible_host` set to the node IP (see "Inventory model" in the README).
 2. `masters_list` in `group_vars/all.yml`: every master as `IP:PORT`.
@@ -45,10 +45,13 @@ Copy `inventory/production/` and adapt it. The essentials:
    and the large_disk builds of the image are not interchangeable for existing data. Decide once for a cluster.
 4. `seaweed_version`, and optionally `container_prefix` if the node also runs other containers.
 
+Every `group_vars/*.yml` file in the example also lists, commented out and with their defaults, all the options of
+that component (replication, racks, logging, extra flags, config files, ...). `docs/CONFIGURATION.md` explains them.
+
 ## Secrets
 
 Secrets are read from environment variables on the controller; nothing secret is stored in the repository.
-See `inventory/production/secrets.env.example`:
+See `examples/secrets.env.example`:
 
 ```bash
 export SEAWEED_FILER_POSTGRES_PASSWORD=...   # only when filer_postgres_enabled is true
@@ -58,7 +61,7 @@ export SEAWEED_ADMIN_PASSWORD=...            # needed if workers must reach the 
 ## First deployment
 
 ```bash
-ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.site
+ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.site
 ```
 
 Roles run in this order: `common` (pre-flight), master, filer, admin, volume, worker. Run one part with tags
@@ -101,8 +104,8 @@ container start-up or the waits (they need the files to exist). Both cases are c
 4. Check what would happen, then add the node:
 
    ```bash
-   ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.add_node -e target_node=node05 --check
-   ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.add_node -e target_node=node05
+   ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.add_node -e target_node=node05 --check
+   ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.add_node -e target_node=node05
    ```
 
    `target_node` is any Ansible host pattern: the group above, a single alias, or a comma-separated list. Do not use
@@ -128,7 +131,7 @@ added **in pairs** (3 to 5). The roles reject an even `masters_list` before touc
 3. Start the new masters:
 
    ```bash
-   ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.add_node -e target_node=master04,master05
+   ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.add_node -e target_node=master04,master05
    ```
 
    They find the running leader and join the raft group by themselves; no manual raft commands are needed.
@@ -139,7 +142,7 @@ added **in pairs** (3 to 5). The roles reject an even `masters_list` before touc
 
    ```bash
    for group in master filer admin volume worker; do
-     ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.rolling_update \
+     ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.rolling_update \
        -e seaweed_version=<current version> -e target_group=$group
    done
    ```

@@ -7,7 +7,7 @@ Use the rolling update. It changes the image tag one container at a time and sto
 ```bash
 # Order (one group per run): master, filer, admin, volume, worker
 for group in master filer admin volume worker; do
-  ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.rolling_update \
+  ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.rolling_update \
     -e seaweed_version=<new> -e target_group=$group
 done
 ```

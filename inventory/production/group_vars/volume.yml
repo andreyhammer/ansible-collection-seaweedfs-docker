@@ -1,4 +1,0 @@
----
-volume_disk_type_default: hdd
-volume_max_volumes: 0
-volume_index_dir: "{{ volume_project_dir }}/index"

@@ -22,10 +22,10 @@ with Docker Compose. Stage 1 targets Debian.
 ```bash
 # Not on Galaxy yet: build and install the archive (see docs/INSTALL.md)
 ansible-galaxy collection build && ansible-galaxy collection install andreyhammer-seaweedfs_docker-*.tar.gz
-# Adapt inventory/production/ from this repository, then export secrets:
+# Adapt examples/inventory/ from this repository, then export secrets:
 export SEAWEED_FILER_POSTGRES_PASSWORD=...
-ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.site --check
-ansible-playbook -i inventory/production andreyhammer.seaweedfs_docker.site
+ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.site --check
+ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.site
 ```
 
 | Task | Command |
@@ -72,12 +72,12 @@ development machine.
 
 Each container instance is its own inventory alias (`master01`, `volume01-dg03`, `worker01-ec02`, ...) whose
 `ansible_host` is the node IP. Container names are `<container_prefix><role><NN>[-<sub><MM>]` with two-digit numbers.
-Volume ports are `8080 + <MM>`. See `inventory/production/` for a complete example and `docs/CONFIGURATION.md` for every variable.
+Volume ports are `8080 + <MM>`. See `examples/inventory/` for a complete example and `docs/CONFIGURATION.md` for every variable.
 
 ## Secrets
 
 Secrets are read from environment variables (`SEAWEED_FILER_POSTGRES_PASSWORD`, `SEAWEED_ADMIN_PASSWORD`).
-See `inventory/production/secrets.env.example`.
+See `examples/secrets.env.example`.
 
 ## Contributing
 

@@ -25,3 +25,6 @@
 - Documented that worker registration in the admin server is not verified by the collection (check the admin UI).
 - Volume: after every start the role waits until the master lists the erasure coding shards the server had before
   (`volume_ec_check`, `volume_ec_register_timeout`); a rolling update stops if they do not come back.
+- Example inventory moved to `examples/inventory/` (five nodes: 3 masters, 3 filers with PostgreSQL, admin, 3 EC workers,
+  15 volume servers over five racks in one data center) and lists every option of each component, commented out with
+  its default, in `group_vars/`. `secrets.env.example` moved out of the inventory directory, where Ansible parsed it.

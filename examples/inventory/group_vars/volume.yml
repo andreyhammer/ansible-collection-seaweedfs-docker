@@ -1,0 +1,37 @@
+---
+volume_data_center: dc1
+volume_disk_type_default: hdd
+volume_max_volumes: 0
+volume_index_dir: "{{ volume_project_dir }}/index"
+
+# ---- Optional settings ---------------------------------------------------------------------------------------
+# Per alias (set in hosts.yml): volume_node_num, volume_dg, volume_data_dirs, volume_rack (-rack), and optionally
+# volume_disk_type, volume_index_dir.
+# volume_disk_type_default: hdd      # -disk
+# volume_max_volumes: 0              # -max (0 = derived from free space)
+# volume_index_type: leveldbLarge    # -index
+# volume_pre_stop_seconds: 30        # -preStopSeconds
+# volume_min_free_space: 5           # -minFreeSpace
+
+# Run as root and bypass the image entrypoint (also skips the ownership check).
+# volume_entrypoint: /usr/bin/weed
+
+# Files on the data disks must belong to the container user. The check stops the deployment on the first foreign
+# file; volume_fix_ownership: true repairs them with a recursive chown instead (slow on full disks).
+# volume_container_uid: 1000
+# volume_container_gid: 1000
+# volume_check_ownership: true
+# volume_fix_ownership: false
+
+# After every start wait until the master lists the EC shards the server had before; stop the update otherwise.
+# volume_ec_check: true
+# volume_ec_register_timeout: 300
+
+# Anything else: extra flags, environment, mounts, config files.
+# volume_extra_args: ["-readMode=proxy"]
+# volume_environment: {}
+# volume_extra_volumes: []
+# volume_config_files:
+#   - {src: files/security.toml, dest: /opt/seaweed/config/volume/security.toml,
+#      container_path: /etc/seaweedfs/security.toml, secret: true}
+# volume_logging: {}

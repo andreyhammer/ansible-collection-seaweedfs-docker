@@ -1,0 +1,44 @@
+---
+seaweed_version: "4.48"
+seaweed_image_repo: chrislusf/seaweedfs
+# REQUIRED explicit choice of the official image variant: false = regular build, true = "large disk" build
+# (<version>_large_disk tag, volumes above 32 GB). Never change it on a cluster that already holds data.
+seaweed_large_disk: false
+seaweed_image: "{{ seaweed_image_repo }}:{{ seaweed_version }}{{ '_large_disk' if seaweed_large_disk | bool else '' }}"
+docker_compose_dir: /opt/seaweed
+container_prefix: ""
+health_check_timeout: 60
+
+container_role_master: master
+container_role_filer: filer
+container_role_admin: admin
+container_role_volume: volume
+container_role_worker: worker
+
+masters_list:
+  - 10.0.0.11:9333
+  - 10.0.0.12:9333
+  - 10.0.0.13:9333
+masters: "{{ masters_list | join(',') }}"
+
+# ---- Optional settings (the values shown are the defaults; uncomment to change) -------------------------------
+# Refuse to replace a running regular container with a large_disk one or the reverse. Leave false.
+# seaweed_allow_variant_change: false
+
+# Environment variables for EVERY container (per role: <role>_environment). Example: gRPC tuning.
+# seaweed_environment:
+#   GRPC_GO_KEEPALIVE_TIME_MS: "20000"
+# Mount /etc/localtime read-only into every container.
+# seaweed_localtime: false
+# Docker logging block for every container (per role: <role>_logging).
+# seaweed_logging:
+#   driver: json-file
+#   options: {max-size: 10m, max-file: "3"}
+
+# Pre-flight (role common). Set common_sysctl to {} to leave the kernel alone.
+# common_sysctl:
+#   vm.swappiness: 10
+#   net.core.somaxconn: 4096
+# common_base_dirs: ["{{ docker_compose_dir }}", /data]
+# Free space (GiB) required on every volume data dir.
+# common_min_free_gb: 10

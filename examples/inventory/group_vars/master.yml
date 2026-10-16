@@ -1,0 +1,20 @@
+---
+master_port: 9333
+# One copy on another rack (five racks in this example).
+master_default_replication: "010"
+
+# ---- Optional settings ---------------------------------------------------------------------------------------
+# Empty = SeaweedFS default.
+# master_volume_size_limit_mb: 30000
+# Anything else: extra flags, environment, mounts, config files (see docs/CONFIGURATION.md).
+# master_extra_args: []
+# master_environment: {}
+# master_extra_volumes: []
+# master_config_files:
+#   - src: files/master.toml                       # file on the control node (or `content:` for inline text)
+#     dest: /opt/seaweed/config/master/master.toml # path on the node
+#     container_path: /etc/seaweedfs/master.toml
+#     mode: "0644"       # default; the container user must be able to read it
+#     read_only: true    # default
+#     secret: false      # true hides the content from the log
+# master_logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}

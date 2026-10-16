@@ -1,0 +1,17 @@
+---
+admin_port: 23646
+
+# ---- Optional settings ---------------------------------------------------------------------------------------
+# The admin server listens on loopback only unless it is protected or told otherwise. Workers on other nodes need it
+# reachable, so use ONE of the following:
+#   1. export SEAWEED_ADMIN_PASSWORD before running (the server then listens on all interfaces), or
+#   2. admin_allow_insecure_bind: true   (binds the node IP WITHOUT authentication: isolated trusted networks only)
+# admin_user: admin                 # -adminUser; empty = SeaweedFS default
+# admin_bind_ip: ""                 # -ip; empty = the node's ansible_host when needed
+# admin_allow_insecure_bind: false
+# admin_extra_args: ["-options=/etc/seaweedfs/admin.conf"]
+# admin_config_files:
+#   - {src: files/admin.conf, dest: /opt/seaweed/config/admin/options.conf, container_path: /etc/seaweedfs/admin.conf}
+# admin_environment: {}
+# admin_extra_volumes: []
+# admin_logging: {}
