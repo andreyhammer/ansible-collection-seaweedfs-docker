@@ -18,6 +18,9 @@ common_min_free_gb: 0
 # Tiny tmpfs disks: cap the number of volumes instead of letting SeaweedFS derive it from free space.
 volume_max_volumes: 5
 
-# Without a password the admin server listens on loopback only. Acceptable here: the nodes sit on an
-# isolated test network. Never copy this to a real inventory.
-admin_allow_insecure_bind: true
+# The admin server is protected by SEAWEED_ADMIN_PASSWORD (exported by run.sh), so it listens on all interfaces.
+
+# Filer: PostgreSQL metadata store (started by run.sh inside node01) and the S3 gateway.
+filer_postgres_enabled: true
+filer_postgres_host: 172.29.14.11
+filer_s3_enabled: true
