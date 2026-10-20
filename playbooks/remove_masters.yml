@@ -1,0 +1,46 @@
+---
+# Usage: ansible-playbook andreyhammer.seaweedfs_docker.remove_masters -e target_masters=master04,master05
+# Removes masters (comma-separated inventory aliases) from the raft cluster, one at a time, and stops their
+# containers. SeaweedFS needs an odd number of masters, so remove them in pairs (5 -> 3 or 3 -> 1).
+# Afterwards remove the aliases from the inventory and from masters_list, then refresh the other services with
+# rolling_update (same version) so that none of them keeps the removed masters in its configuration.
+- name: Validate input
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Require target_masters
+      ansible.builtin.assert:
+        that: target_masters is defined
+        fail_msg: "Pass the masters to remove with -e target_masters=master04,master05."
+        quiet: true
+
+    - name: Check the masters to remove
+      ansible.builtin.assert:
+        that:
+          - remove_targets | difference(groups['master']) | length == 0
+          - remove_targets | length > 0
+          - remove_remaining | length > 0
+          - remove_remaining | length is odd
+        fail_msg: >-
+          Cannot remove {{ remove_targets | join(',') }}: every one must be in the master group, and the number of
+          remaining masters ({{ remove_remaining | length }}) must be odd and at least 1, because SeaweedFS refuses
+          to start masters with an even list. Remove masters in pairs.
+        quiet: true
+      vars:
+        remove_targets: "{{ target_masters.split(',') | map('trim') | list }}"
+        remove_remaining: "{{ groups['master'] | reject('in', remove_targets) | list }}"
+
+- name: Remove the masters from the cluster
+  hosts: "{{ target_masters | default('target_masters_is_not_set') }}"
+  serial: 1
+  max_fail_percentage: 0
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Remove the master
+      ansible.builtin.include_role:
+        name: andreyhammer.seaweedfs_docker.master
+        tasks_from: remove
+      vars:
+        master_remove_targets: "{{ target_masters.split(',') | map('trim') | list }}"
+      tags: [master]

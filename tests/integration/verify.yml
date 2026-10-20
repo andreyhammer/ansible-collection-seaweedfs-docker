@@ -107,13 +107,13 @@
       vars:
         common_checks: ["GRPC_GO_RECV_BUFFER_SIZE=1048576", "/etc/localtime:/etc/localtime:ro", "json-file"]
         host_checks:
-          master: ["-defaultReplication=000", "-volumeSizeLimitMB=64"]
+          master: ["-defaultReplication=010", "-volumeSizeLimitMB=64"]
           volume:
             - "-index=leveldbLarge"
             - "-dataCenter=dc1"
             - "-preStopSeconds=5"
             - "-minFreeSpace=1"
-            - "-max=5"
+            - "-max=12"
             - "-readMode=proxy"
           filer:
             - "-s3.idleTimeout=3600"
@@ -132,3 +132,22 @@
       retries: 10
       delay: 3
       until: verify_worker_metrics.status == 200
+
+- name: Verify the config files took effect
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Read the topology
+      ansible.builtin.uri:
+        url: "http://172.29.14.11:9333/dir/status"
+        return_content: true
+      register: verify_topology
+
+    - name: The data center set through the options file is reported by the master
+      ansible.builtin.assert:
+        that:
+          - >-
+            verify_topology.json.Topology.DataCenters | map(attribute='Id')
+            | select('equalto', 'dc-from-file') | list | length == 1
+        fail_msg: "no data center dc-from-file in the topology: the -options file was not applied"
+        quiet: true

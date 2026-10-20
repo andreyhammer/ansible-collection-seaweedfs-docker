@@ -9,6 +9,7 @@ admin_port: 23646
 # admin_user: admin                 # -adminUser; empty = SeaweedFS default
 # admin_bind_ip: ""                 # -ip; empty = the node's ansible_host when needed
 # admin_allow_insecure_bind: false
+# An options file holds `optionName=optionValue` lines (it is not TOML):
 # admin_extra_args: ["-options=/etc/seaweedfs/admin.conf"]
 # admin_config_files:
 #   - {src: files/admin.conf, dest: /opt/seaweed/config/admin/options.conf, container_path: /etc/seaweedfs/admin.conf}

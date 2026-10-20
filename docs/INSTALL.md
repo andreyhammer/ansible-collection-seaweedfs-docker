@@ -148,8 +148,30 @@ added **in pairs** (3 to 5). The roles reject an even `masters_list` before touc
    ```
 5. Run `site` once more: it must report no changes.
 
-Going from three masters to five was tested end to end. **Removing or replacing a master is not covered** by the
-collection and has not been tested; every intermediate state must keep an odd number of masters.
+## Remove or replace masters
+
+Removal also happens **in pairs** (5 to 3, 3 to 1), because the list that remains must stay odd. To replace one
+master, add two new ones first and then remove the old one together with one of the new ones.
+
+1. Remove the masters from the raft cluster and stop their containers, one at a time:
+
+   ```bash
+   ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.remove_masters -e target_masters=master04,master05
+   ```
+
+   For each master the playbook checks that it is a raft member, runs `cluster.raft.remove` from a master that stays,
+   waits until `cluster.raft.ps` no longer lists it and then removes its container. The project directory (compose file
+   and raft data) is kept: delete it by hand once you are sure. A single master, or any number that would leave an
+   even list, is rejected before anything changes.
+2. Delete the aliases from the inventory and from `masters_list`.
+3. Refresh the other services, as in step 4 of "Add masters" (same version; the leader is restarted last), and run
+   `site` once more: it must report no changes.
+
+Tested: going from three masters to five and back to three, with every service refreshed afterwards. **Not tested:**
+removing a master whose server is already dead (in a manual probe `cluster.raft.remove` worked for a member whose
+container had been stopped, but the playbook cannot reach a dead host to stop its container, so it would fail on that
+step; remove the member by hand with `cluster.raft.remove -id <ip>:9333.19333` in `weed shell`) and removing the
+current leader.
 
 ## Try it safely first
 

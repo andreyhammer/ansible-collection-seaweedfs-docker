@@ -1,0 +1,66 @@
+---
+# Removes this master from the raft cluster and stops its container. Used by playbooks/remove_masters.yml, which
+# runs it one master at a time. The weed shell commands run in a master container that stays in the cluster.
+- name: Work out the raft id and the master that stays
+  ansible.builtin.set_fact:
+    master_raft_id: "{{ ansible_host }}:{{ master_port }}.{{ (master_port | int) + 10000 }}"
+    master_keeper: "{{ groups['master'] | reject('in', master_remove_targets) | first }}"
+
+- name: Name the weed shell container of the master that stays
+  ansible.builtin.set_fact:
+    master_keeper_container: >-
+      {{ container_prefix }}{{ container_role_master }}{{ '%02d' | format(hostvars[master_keeper].node_num | int) }}
+    master_keeper_address: "{{ hostvars[master_keeper].ansible_host }}:{{ master_port }}"
+
+- name: List the raft servers
+  ansible.builtin.command:
+    cmd: "docker exec -i {{ master_keeper_container }} weed shell -master={{ master_keeper_address }}"
+    stdin: "cluster.raft.ps"
+  delegate_to: "{{ master_keeper }}"
+  register: master_raft_before
+  changed_when: false
+  check_mode: false
+
+- name: Check that this master is a raft member
+  ansible.builtin.assert:
+    that: master_raft_id in master_raft_before.stdout
+    fail_msg: >-
+      {{ master_raft_id }} is not in the raft cluster (cluster.raft.ps shows: {{ master_raft_before.stdout }}).
+      Nothing was changed for {{ inventory_hostname }}.
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Remove the master from the raft cluster
+  ansible.builtin.command:
+    cmd: "docker exec -i {{ master_keeper_container }} weed shell -master={{ master_keeper_address }}"
+    stdin: "lock; cluster.raft.remove -id {{ master_raft_id }}; unlock"
+  delegate_to: "{{ master_keeper }}"
+  register: master_raft_remove
+  changed_when: true
+  failed_when: master_raft_remove.rc != 0 or 'error' in (master_raft_remove.stderr | lower)
+  when: not ansible_check_mode
+
+- name: Wait until the raft cluster no longer lists the master
+  ansible.builtin.command:
+    cmd: "docker exec -i {{ master_keeper_container }} weed shell -master={{ master_keeper_address }}"
+    stdin: "cluster.raft.ps"
+  delegate_to: "{{ master_keeper }}"
+  register: master_raft_after
+  until: master_raft_id not in master_raft_after.stdout
+  retries: 10
+  delay: 3
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Check whether the master project exists
+  ansible.builtin.stat:
+    path: "{{ master_project_dir }}/compose.yaml"
+  register: master_remove_compose
+
+# The project directory (compose.yaml and the raft data) is kept: delete it by hand once the removal is confirmed.
+- name: Stop and remove the master container
+  community.docker.docker_compose_v2:
+    project_src: "{{ master_project_dir }}"
+    state: absent
+  when: master_remove_compose.stat.exists

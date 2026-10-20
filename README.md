@@ -32,6 +32,7 @@ ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.site
 |---|---|
 | Upgrade volumes | `ansible-playbook andreyhammer.seaweedfs_docker.rolling_update -e seaweed_version=4.49` |
 | Upgrade masters (leader last) | `... rolling_update -e seaweed_version=4.49 -e target_group=master` |
+| Remove masters (in pairs) | `ansible-playbook andreyhammer.seaweedfs_docker.remove_masters -e target_masters=master04,master05` (see `docs/INSTALL.md`) |
 | Add a node | `ansible-playbook andreyhammer.seaweedfs_docker.add_node -e target_node=node05` (a group with all aliases of the new node; see `docs/INSTALL.md`) |
 
 ## Image selection

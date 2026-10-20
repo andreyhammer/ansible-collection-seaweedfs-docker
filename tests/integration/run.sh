@@ -2,7 +2,7 @@
 # Integration tests on disposable Docker-in-Docker nodes. Nothing here touches real hosts.
 #
 #   ./run.sh test     full run: up, deploy, verify, idempotence, rolling update, down
-#   ./run.sh up|deploy|verify|idempotence|dryrun|addnode|masters|maintenance|failpath|guard|update|down|shell <node>
+#   ./run.sh up|deploy|verify|idempotence|dryrun|addnode|masters|removemasters|ecshards|maintenance|failpath|guard|update|down|shell <node>
 #
 # Env: KEEP=1 keeps the nodes after `test`.
 #      SEAWEED_TEST_LARGE_DISK=1 tests the official large_disk build instead of the regular one.
@@ -138,6 +138,23 @@ verify_services() {
     curl -sf -X PUT --data-binary "s3-$name" "$s3/$bucket/$name" -o /dev/null || fail "S3 put failed" || return 1
     [[ $(curl -sf "$s3/$bucket/$name") == "s3-$name" ]] || fail "S3 read-back differs" || return 1
     echo "  OK S3: bucket, put, get"
+
+    # Default replication 010: the two copies of a volume must sit in different racks.
+    local rep_fid rep_vid rep_racks
+    rep_fid=$(curl -sf "http://172.29.14.11:9333/dir/assign" | python3 -c 'import sys,json;print(json.load(sys.stdin)["fid"])')
+    rep_vid=${rep_fid%%,*}
+    rep_racks=$(python3 - "$rep_vid" <<'PY'
+import json, sys, urllib.request
+vid = sys.argv[1]
+get = lambda u: json.load(urllib.request.urlopen(u))
+urls = [l["url"] for l in get(f"http://172.29.14.11:9333/dir/lookup?volumeId={vid}")["locations"]]
+rack_of = {n["Url"]: r["Id"] for dc in get("http://172.29.14.11:9333/dir/status")["Topology"]["DataCenters"]
+           for r in dc["Racks"] for n in r["DataNodes"]}
+print(len(urls), len({rack_of[u] for u in urls}))
+PY
+)
+    [[ $rep_racks == "2 2" ]] || fail "volume $rep_vid has (copies racks) = $rep_racks, expected 2 copies in 2 racks" || return 1
+    echo "  OK replication 010: two copies of volume $rep_vid in different racks"
 }
 
 idempotence() {
@@ -329,6 +346,33 @@ failpath() {
     verify test-a
 }
 
+# Remove the two extra masters again (5 -> 3) and refresh every service with the shorter list.
+remove_masters() {
+    local out
+    log "Remove masters: removing a single master (an even list would remain) must be rejected"
+    if out=$(ansible-playbook "$COLLECTION.remove_masters" "${EXTRA_VARS[@]}" -e target_masters=master05 2>&1); then
+        fail "removing one of five masters was accepted" || return 1
+    fi
+    grep -q 'Remove masters in pairs' <<<"$out" || { tail -15 <<<"$out" >&2; fail "rejected, but not for the right reason" || return 1; }
+    echo "  OK removing a single master is rejected"
+
+    log "Remove masters: master04 and master05 leave the raft cluster"
+    ansible-playbook "$COLLECTION.remove_masters" "${EXTRA_VARS[@]}" -e target_masters=master04,master05
+    weed_shell <<<"cluster.raft.ps" | grep -q 'has 3 servers' || fail "the raft cluster does not have 3 servers" || return 1
+    for out in node04:master04 node05:master05; do
+        [[ -z $(docker exec "swfs-test-${out%%:*}" docker ps -q --filter "name=^${out##*:}$") ]] \
+            || fail "${out##*:} is still running" || return 1
+    done
+    echo "  OK the raft cluster has three servers and the removed containers are gone"
+
+    log "Remove masters: refresh every service with the three-master list"
+    export ANSIBLE_INVENTORY="$HERE/inventory/hosts.yml"
+    EXTRA_VARS+=(-e '{"masters_list":["172.29.14.11:9333","172.29.14.12:9333","172.29.14.13:9333"]}')
+    MASTER_NODES=(node01 node02 node03)
+    rolling_all test-b
+    verify test-b
+}
+
 # EC volumes: a volume server must re-register its erasure coding shards before the next server is touched.
 ec_shards() {
     log "EC shards: encode a volume, then a server that lost a shard must stop the upgrade"
@@ -337,7 +381,8 @@ ec_shards() {
     vid=${fid%%,*}
     head -c 200000 /dev/urandom | curl -sf -F file=@- "http://$(curl -sf "http://172.29.14.11:9333/dir/lookup?volumeId=$vid" \
         | python3 -c 'import sys,json;print(json.load(sys.stdin)["locations"][0]["url"])')/$fid" >/dev/null
-    printf 'lock\nec.encode -volumeId=%s\nunlock\n' "$vid" | weed_shell | tail -2
+    out=$(printf 'lock\nec.encode -volumeId=%s\nunlock\n' "$vid" | weed_shell) || true
+    grep -q 'Successfully completed EC encoding' <<<"$out" || { tail -5 <<<"$out" >&2; fail "ec.encode of volume $vid failed" || return 1; }
     sleep 5
     # A shard file on a first-group disk (disk01/disk02) of node01-03 belongs to that node's dg01 volume server.
     for n in 1 2 3; do
@@ -413,6 +458,8 @@ case ${1:-test} in
     maintenance) maintenance_effect ;;
     failpath) failpath ;;
     masters) add_masters ;;
+    removemasters) remove_masters ;;
+    ecshards) ec_shards ;;
     guard) guard ;;
     update) update ;;
     down) down ;;
@@ -435,6 +482,7 @@ case ${1:-test} in
         ec_shards
         update
         verify test-b
+        remove_masters
         log "ALL TESTS PASSED"
         ;;
     *) sed -n '2,8p' "$0"; exit 2 ;;

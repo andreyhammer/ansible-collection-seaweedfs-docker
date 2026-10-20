@@ -41,7 +41,7 @@ Any flag, environment variable, mount or config file that has no dedicated varia
 
 | Variable | Default | Notes |
 |---|---|---|
-| `<role>_extra_args` | `[]` | Appended to the `weed` command, e.g. `["-options=/etc/seaweedfs/filer.toml"]` |
+| `<role>_extra_args` | `[]` | Appended to the `weed` command, e.g. `["-readMode=proxy"]` or `["-options=/etc/seaweedfs/opts.conf"]` |
 | `<role>_environment` | `{}` | Merged over `seaweed_environment` (set it once for gRPC tuning on every container) |
 | `<role>_extra_volumes` | `[]` | `"host:container[:mode]"` strings |
 | `<role>_config_files` | `[]` | Files deployed to the node and mounted, see below |
@@ -53,8 +53,24 @@ Any flag, environment variable, mount or config file that has no dedicated varia
 
 A config file entry is `{src or content, dest, container_path, mode: "0644", read_only: true, secret: false}`:
 `src` is a file on the control node, `dest` the path on the managed node. `secret: true` hides the content from the
-log. Files are owned by root, so a file the container must read needs `mode: "0644"` (the image drops to uid 1000). When a config file changes, the container is recreated on that run. Values
-containing `$` are escaped for Compose automatically.
+log. Files are owned by root, so a file the container must read needs `mode: "0644"` (the image drops to uid 1000).
+When a config file changes, the container is recreated on that run. Values containing `$` are escaped for Compose
+automatically.
+
+There are two different kinds of config files, and they are easy to mix up:
+
+- **SeaweedFS TOML configs** (`master.toml`, `filer.toml`, `security.toml`, ...). SeaweedFS finds them by name in
+  `/etc/seaweedfs/`, so mount them there and add nothing to the command: `container_path: /etc/seaweedfs/filer.toml`.
+  The official image ships its own `/etc/seaweedfs/filer.toml` with the built-in `leveldb2` store enabled; mounting
+  yours replaces it (remember `[leveldb2] enabled = false` next to another store). **A TOML file with a syntax error is
+  not an error for SeaweedFS**: it logs `Skipping optional configuration` and starts without the file, so check
+  `docker logs <container>` for `Reading ...: While parsing config` after changing one.
+- **Options files** for `-options=<file>`: a plain list of `optionName=optionValue` lines (one flag per line), not
+  TOML. Mount the file and add `-options=<path>` to `<role>_extra_args`. Setting the same flag through a variable and
+  through the options file at once is not tested; use one of them.
+
+Tested: `master.toml`, a `filer.toml` that puts the filer on PostgreSQL, and an options file that sets `dataCenter`
+(the master reports it). Not tested: `security.toml` contents (JWT, TLS), `admin` and `worker` options files.
 
 Example, covering a typical hand-written cluster:
 
@@ -72,7 +88,8 @@ volume_data_center: dc1
 volume_pre_stop_seconds: 30
 volume_min_free_space: 5
 volume_entrypoint: /usr/bin/weed
-filer_extra_args: ["-options=/etc/seaweedfs/filer.toml"]
+filer_config_files:
+  - {src: files/filer.toml, dest: /opt/seaweed/config/filer.toml, container_path: /etc/seaweedfs/filer.toml}
 filer_s3_idle_timeout: 3600
 ```
 

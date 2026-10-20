@@ -16,7 +16,7 @@ common_sysctl:
 common_min_free_gb: 0
 
 # Tiny tmpfs disks: cap the number of volumes instead of letting SeaweedFS derive it from free space.
-volume_max_volumes: 5
+volume_max_volumes: 12
 
 # The admin server is protected by SEAWEED_ADMIN_PASSWORD (exported by run.sh), so it listens on all interfaces.
 
@@ -32,7 +32,7 @@ seaweed_localtime: true
 seaweed_logging:
   driver: json-file
   options: {max-size: 10m, max-file: "3"}
-master_default_replication: "000"
+master_default_replication: "010"
 master_volume_size_limit_mb: 64
 volume_index_type: leveldbLarge
 volume_data_center: dc1
@@ -42,6 +42,16 @@ volume_extra_args: ["-readMode=proxy"]
 filer_s3_idle_timeout: 3600
 filer_environment:
   S3_EXTERNAL_URL: "http://s3.test.local:8333"
+master_config_files:
+  - content: |
+      [master.maintenance]
+      scripts = """
+        lock
+        unlock
+      """
+      sleep_minutes = 17
+    dest: /opt/seaweed/config/master.toml
+    container_path: /etc/seaweedfs/master.toml
 filer_config_files:
   - content: "# integration test\n"
     dest: /opt/seaweed/config/filer-test.conf

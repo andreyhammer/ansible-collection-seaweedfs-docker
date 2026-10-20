@@ -16,8 +16,8 @@ filer_postgres_host: 10.0.0.20
 # filer_postgres_db: seaweedfs
 # filer_postgres_user: seaweedfs
 
-# Anything else, for example a filer.toml (see docs/CONFIGURATION.md).
-# filer_extra_args: ["-options=/etc/seaweedfs/filer.toml"]
+# Anything else, for example a real filer.toml: SeaweedFS reads it from /etc/seaweedfs/filer.toml, no flag needed
+# (see docs/CONFIGURATION.md; the image's default filer.toml enables the built-in leveldb2 store).
 # filer_environment: {S3_EXTERNAL_URL: "https://s3.example.com"}
 # filer_config_files:
 #   - {src: files/filer.toml, dest: /opt/seaweed/config/filer.toml, container_path: /etc/seaweedfs/filer.toml}

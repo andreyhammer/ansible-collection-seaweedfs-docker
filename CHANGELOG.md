@@ -28,3 +28,8 @@
 - Example inventory moved to `examples/inventory/` (five nodes: 3 masters, 3 filers with PostgreSQL, admin, 3 EC workers,
   15 volume servers over five racks in one data center) and lists every option of each component, commented out with
   its default, in `group_vars/`. `secrets.env.example` moved out of the inventory directory, where Ansible parsed it.
+- Playbook `remove_masters`: removes masters from the raft cluster in pairs (one at a time) and stops their containers;
+  tested together with adding them (3 -> 5 -> 3).
+- Test: default replication `010` across racks (two copies in different racks), a real `filer.toml` (PostgreSQL), a
+  `master.toml` and an `-options` file. Documentation corrected: `-options` takes `name=value` lines, while TOML configs
+  are mounted into `/etc/seaweedfs/`; SeaweedFS silently skips a TOML file with a syntax error.

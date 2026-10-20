@@ -21,6 +21,7 @@ worker_metrics_port: 0
 # worker_id (-id; default: the container name) and worker_metrics_port.
 # worker_max_execute: 1
 # worker_admin_address: 10.0.0.11:23646   # default: the first host of the admin group, port 23646
+# An options file holds `optionName=optionValue` lines (it is not TOML):
 # worker_extra_args: ["-options=/etc/seaweedfs/worker.conf"]
 # worker_config_files:
 #   - {src: files/worker.conf, dest: /opt/seaweed/config/worker/worker.conf, container_path: /etc/seaweedfs/worker.conf}
