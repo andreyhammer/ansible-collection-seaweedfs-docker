@@ -18,7 +18,8 @@ With `container_prefix: "seaweed-"`: `seaweed-master01`, `seaweed-volume01-dg03`
 
 | Artifact | Path |
 |---|---|
-| Project and compose file | `<docker_compose_dir>/<container_name>/compose.yaml` |
+| Compose file of a container | `<docker_compose_dir>/<container_name>/compose.yaml` (service name = container name) |
+| Node compose file | `<docker_compose_dir>/compose.yaml`: includes every container of the node, see "Manage by hand" in INSTALL.md |
 | Volume index dir | `<docker_compose_dir>/<container_name>/index/` |
 | Worker working dir | `<docker_compose_dir>/<container_name>/data/` |
 
@@ -122,6 +123,7 @@ filer_s3_idle_timeout: 3600
 | Variable | Default | Notes |
 |---|---|---|
 | `docker_compose_dir` | `/opt/seaweed` | Base directory for all projects |
+| `compose_project_name` | `seaweed` | Compose project shared by every container of a node (lowercase letters, digits, `-`, `_`) |
 | `container_prefix` | `""` | |
 | `health_check_timeout` | `60` | Seconds to wait for ports and cluster registration |
 | `common_base_dirs` | `docker_compose_dir` | Created on every node |

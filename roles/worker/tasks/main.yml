@@ -59,10 +59,23 @@
     path: "{{ worker_project_dir }}/compose.yaml"
   register: worker_compose_file
 
+- name: Move the worker container into the shared Compose project
+  ansible.builtin.include_role:
+    name: andreyhammer.seaweedfs_docker.common
+    tasks_from: project_migrate
+  vars:
+    seaweed_guard_container: "{{ worker_container_name }}"
+
+- name: Update the node compose file
+  ansible.builtin.include_role:
+    name: andreyhammer.seaweedfs_docker.common
+    tasks_from: compose_index
+
 # In check mode the project directory is not created, and docker compose cannot inspect a missing project.
 - name: Start the worker container
   community.docker.docker_compose_v2:
     project_src: "{{ worker_project_dir }}"
+    project_name: "{{ compose_project_name }}"
     state: present
     pull: missing
     recreate: "{{ 'always' if seaweed_config_changed | default(false) | bool else 'auto' }}"

@@ -1,6 +1,7 @@
 # Managed by Ansible (andreyhammer.seaweedfs_docker). Do not edit.
+name: {{ compose_project_name }}
 services:
-  worker:
+  {{ worker_container_name }}:
     image: {{ seaweed_image }}
     container_name: {{ worker_container_name }}
     network_mode: host

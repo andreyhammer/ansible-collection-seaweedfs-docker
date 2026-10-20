@@ -5,6 +5,8 @@ seaweed_image_repo: chrislusf/seaweedfs
 # seaweed_large_disk has no default on purpose: it must be set explicitly (see roles/common/tasks/image_variant.yml).
 seaweed_image: "{{ seaweed_image_repo }}:{{ seaweed_version }}{{ '_large_disk' if seaweed_large_disk | bool else '' }}"
 docker_compose_dir: /opt/seaweed
+# One Compose project for every container of a node, so that `docker compose` in docker_compose_dir sees them all.
+compose_project_name: seaweed
 # DANGEROUS: allow replacing a running regular container with a large_disk one (or the reverse).
 # The two builds use different volume index formats; only set this for a deliberate, tested migration.
 seaweed_allow_variant_change: false

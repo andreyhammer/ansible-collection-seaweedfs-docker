@@ -2,7 +2,7 @@
 # Integration tests on disposable Docker-in-Docker nodes. Nothing here touches real hosts.
 #
 #   ./run.sh test     full run: up, deploy, verify, idempotence, rolling update, down
-#   ./run.sh up|deploy|verify|idempotence|dryrun|addnode|masters|removemasters|ecshards|maintenance|failpath|guard|disks|update|down|shell <node>
+#   ./run.sh up|deploy|verify|idempotence|dryrun|addnode|masters|removemasters|ecshards|maintenance|failpath|guard|disks|compose|update|down|shell <node>
 #
 # Env: KEEP=1 keeps the nodes after `test`.
 #      SEAWEED_TEST_LARGE_DISK=1 tests the official large_disk build instead of the regular one.
@@ -377,6 +377,11 @@ remove_masters() {
         [[ -z $(docker exec "swfs-test-${out%%:*}" docker ps -q --filter "name=^${out##*:}$") ]] \
             || fail "${out##*:} is still running" || return 1
     done
+    for out in node04:master04 node05:master05; do
+        if docker exec "swfs-test-${out%%:*}" grep -q "${out##*:}/compose.yaml" /opt/seaweed/compose.yaml; then
+            fail "${out##*:} is still in the node compose file" || return 1
+        fi
+    done
     echo "  OK the raft cluster has three servers and the removed containers are gone"
 
     log "Remove masters: refresh every service with the three-master list"
@@ -438,6 +443,50 @@ guard() {
     fi
     grep -q 'Set seaweed_large_disk explicitly' <<<"$out" || { echo "FAIL: wrong error" >&2; tail -20 <<<"$out" >&2; return 1; }
     echo "OK: missing seaweed_large_disk rejected"
+}
+
+# One Compose project per node: the node compose file lists every container, works by hand, and containers made by
+# earlier versions of the roles (own project per directory, service named after the role) are moved without data loss.
+compose() {
+    log "Compose: every container of a node is in one project and listed in the node compose file"
+    local node name n expected shown
+    for n in 1 2 3; do
+        node=swfs-test-node0$n
+        expected=$(docker exec "$node" docker ps --format '{{.Names}}' | grep -v '^postgres$' | sort | tr '\n' ' ')
+        shown=$(docker exec "$node" sh -c 'cd /opt/seaweed && docker compose ps --format "{{.Name}}"' | sort | tr '\n' ' ')
+        [[ -n $expected && $expected == "$shown" ]] \
+            || fail "$node: docker ps says [$expected], the node compose file shows [$shown]" || return 1
+        for name in $expected; do
+            [[ $(docker exec "$node" docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$name") == seaweed ]] \
+                || fail "$name is not in the project seaweed" || return 1
+        done
+    done
+    echo "  OK all containers are in the project seaweed and listed"
+
+    log "Compose: a container can be restarted by hand through the node compose file"
+    local before after
+    before=$(docker exec swfs-test-node01 docker inspect -f '{{.State.StartedAt}}' volume01-dg01)
+    docker exec swfs-test-node01 sh -c 'cd /opt/seaweed && docker compose restart volume01-dg01' >/dev/null 2>&1
+    after=$(docker exec swfs-test-node01 docker inspect -f '{{.State.StartedAt}}' volume01-dg01)
+    [[ $before != "$after" ]] || fail "volume01-dg01 was not restarted" || return 1
+    echo "  OK restarted by hand"
+
+    log "Compose: a container from an older layout is moved into the shared project, data kept"
+    local c=volume02-dg01 dir=/opt/seaweed/volume02-dg01 mark=/mnt/disk01/compose-migration.mark
+    docker exec swfs-test-node02 sh -c "touch $mark; chown 1000:1000 $mark; docker rm -f $c >/dev/null; \
+        sed -e '/^name: /d' -e 's/^  $c:\$/  volume:/' $dir/compose.yaml > $dir/old.yaml && mv $dir/old.yaml $dir/compose.yaml \
+        && cd $dir && docker compose up -d >/dev/null 2>&1"
+    [[ $(docker exec swfs-test-node02 docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' $c) == volume02-dg01 ]] \
+        || fail "could not recreate the old layout" || return 1
+    deploy --limit "$c" -e seaweed_version=test-a
+    [[ $(docker exec swfs-test-node02 docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' $c) == seaweed ]] \
+        || fail "$c was not moved into the project seaweed" || return 1
+    docker exec swfs-test-node02 test -f $mark || fail "data on the disk was lost" || return 1
+    docker exec swfs-test-node02 rm -f $mark
+    docker exec swfs-test-node02 sh -c 'cd /opt/seaweed && docker compose ps --format "{{.Name}}"' | grep -qx $c \
+        || fail "$c is not listed in the node compose file" || return 1
+    verify test-a
+    echo "  OK moved without losing data"
 }
 
 ownership() {
@@ -537,6 +586,7 @@ case ${1:-test} in
     ecshards) ec_shards ;;
     guard) guard ;;
     disks) disks ;;
+    compose) compose ;;
     update) update ;;
     down) down ;;
     shell) docker exec -it "swfs-test-${2:?node name, e.g. node01}" sh ;;
@@ -553,6 +603,7 @@ case ${1:-test} in
         idempotence
         guard
         disks
+        compose
         ownership
         maintenance_effect
         failpath

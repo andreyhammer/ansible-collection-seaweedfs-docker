@@ -1,0 +1,29 @@
+---
+# Containers created by earlier versions of the roles belong to a Compose project named after their own directory.
+# They are removed here so that the next start creates them in the shared project (the name is kept, so the data
+# directories are reused untouched). Nothing is done for a missing container or one that is already in the project.
+# Input: seaweed_guard_container - name of the container that is about to be created or recreated.
+- name: Look up the Compose project of the existing container
+  ansible.builtin.command: >-
+    docker inspect --format '{% raw %}{{ index .Config.Labels "com.docker.compose.project" }}{% endraw %}'
+    {{ seaweed_guard_container }}
+  register: seaweed_project_current
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Stop the container that belongs to another Compose project
+  ansible.builtin.command: "docker stop {{ seaweed_guard_container }}"
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - seaweed_project_current.rc == 0
+    - (seaweed_project_current.stdout | trim) != compose_project_name
+
+- name: Remove the container that belongs to another Compose project
+  ansible.builtin.command: "docker rm {{ seaweed_guard_container }}"
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - seaweed_project_current.rc == 0
+    - (seaweed_project_current.stdout | trim) != compose_project_name

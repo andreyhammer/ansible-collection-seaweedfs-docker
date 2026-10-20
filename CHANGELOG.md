@@ -16,6 +16,9 @@
 - Role `disks` and playbook `prepare_disks`: formats blank disks with XFS (only with `disks_format=true`), mounts them by
   label and writes `/etc/fstab`; refuses disks that carry any signature.
 - `remove_masters` handles the raft leader (stops it first; a leader cannot remove itself).
+- One Compose project (`compose_project_name`, default `seaweed`) per node, service name = container name, and a node
+  file `<docker_compose_dir>/compose.yaml` that includes every container, for `docker compose ps|restart|up -d` by
+  hand. Containers from the earlier per-directory layout are moved into the project on the next run.
 - `/data` is no longer created on the host (only `docker_compose_dir`).
 - The roles do not change kernel parameters (no sysctl); `common_sysctl` does not exist.
 - `seaweed_ip`: cluster address that may differ from `ansible_host` (defaults to it).

@@ -1,0 +1,9 @@
+# Managed by Ansible (andreyhammer.seaweedfs_docker index). Do not edit.
+# Includes every container of this node: run `docker compose ps`, `logs -f <name>`, `restart <name>` or `up -d` here.
+name: {{ compose_project_name }}
+{% if seaweed_index_files | length > 0 %}
+include:
+{% for path in seaweed_index_files %}
+  - {{ path }}
+{% endfor %}
+{% endif %}

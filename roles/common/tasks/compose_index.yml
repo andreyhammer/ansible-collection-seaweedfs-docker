@@ -1,0 +1,26 @@
+---
+# Writes <docker_compose_dir>/compose.yaml that includes the compose file of every container this collection manages
+# on the node, so that `docker compose ps|logs|restart|up -d` run in that directory works on all of them by hand.
+# The list comes from the files on disk (marker line in the header), so several aliases of one node can run this
+# one after another (throttle) and the result does not depend on which alias is processed first.
+- name: Find the compose files of the managed containers
+  ansible.builtin.find:
+    paths: "{{ docker_compose_dir }}"
+    patterns: compose.yaml
+    recurse: true
+    depth: 2
+    contains: '^# Managed by Ansible \(andreyhammer\.seaweedfs_docker\)'
+  register: seaweed_index_found
+  check_mode: false
+  throttle: 1
+
+- name: Write the node compose file
+  ansible.builtin.template:
+    src: compose_index.yaml.j2
+    dest: "{{ docker_compose_dir }}/compose.yaml"
+    mode: "0644"
+  vars:
+    seaweed_index_files: >-
+      {{ seaweed_index_found.files | map(attribute='path') | reject('equalto', docker_compose_dir ~ '/compose.yaml')
+      | sort | list }}
+  throttle: 1

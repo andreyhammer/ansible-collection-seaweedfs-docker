@@ -110,6 +110,31 @@ is never forced; the filesystem label (at most 12 characters) is what `/etc/fsta
 device renaming. Re-running is safe: disks that are already formatted with the right label are only mounted.
 Debian only; the package `xfsprogs` is installed unless `disks_install_packages: false`.
 
+## Manage by hand
+
+Every node has `/opt/seaweed/compose.yaml` (written by the roles, do not edit) that includes the compose file of every
+container the collection manages on it. All of them belong to one Compose project (`compose_project_name`, `seaweed`),
+so Ansible is not needed for day-to-day work:
+
+```bash
+cd /opt/seaweed
+docker compose ps
+docker compose logs -f --tail 100 volume05-dg01
+docker compose restart volume05-dg01     # one container
+docker compose restart                   # every container of the node
+docker compose up -d                     # start everything that is stopped
+```
+
+The service name is the container name. `docker compose up -d` after changing a `compose.yaml` by hand recreates the
+container, and the next Ansible run overwrites such a change. A removed master (`remove_masters`) has its
+`compose.yaml` renamed to `compose.yaml.removed` and disappears from the list, so a manual `up -d` does not start it
+again. Only files with the collection's header are listed; compose files that you keep in other directories there
+are left alone.
+
+Containers created by an earlier layout (one Compose project per directory) are stopped and removed on the next run
+of a role and started again in the shared project; the data directories are reused as they are, but the container is
+restarted once. Dry runs (`--check`) do not report this move.
+
 ## Add a node (new hardware)
 
 1. Prepare the machine: Debian, SSH access, Docker Engine and the `docker compose` plugin, data disks mounted at the
