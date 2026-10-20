@@ -37,7 +37,7 @@ services:
       - volume
       - -master={{ masters }}
       - -port={{ volume_port }}
-      - -ip={{ ansible_host }}
+      - -ip={{ (seaweed_ip | default(ansible_host, true)) }}
       - -dir={% for dir in volume_data_dirs %}/data/disk{{ loop.index }}{{ ',' if not loop.last else '' }}{% endfor %}
 
       - -dir.idx=/cache

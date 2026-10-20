@@ -30,7 +30,7 @@ services:
     command:
       - master
       - -port={{ master_port }}
-      - -ip={{ ansible_host }}
+      - -ip={{ (seaweed_ip | default(ansible_host, true)) }}
       - -mdir=/data
       - -peers={{ masters }}
 {% if master_default_replication | length > 0 %}

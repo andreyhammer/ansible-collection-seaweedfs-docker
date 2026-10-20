@@ -31,7 +31,7 @@ services:
       - filer
       - -master={{ masters }}
       - -port={{ filer_port }}
-      - -ip={{ ansible_host }}
+      - -ip={{ (seaweed_ip | default(ansible_host, true)) }}
 {% if filer_s3_enabled %}
       - -s3
       - -s3.port={{ filer_s3_port }}

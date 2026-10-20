@@ -37,14 +37,6 @@
       Install it before running this collection.
   when: common_compose_version.rc != 0
 
-- name: Configure sysctl
-  ansible.posix.sysctl:
-    name: "{{ item.key }}"
-    value: "{{ item.value }}"
-    state: present
-    reload: true
-  loop: "{{ common_sysctl | dict2items }}"
-
 - name: Create base directories
   ansible.builtin.file:
     path: "{{ item }}"

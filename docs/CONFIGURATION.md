@@ -24,6 +24,20 @@ With `container_prefix: "seaweed-"`: `seaweed-master01`, `seaweed-volume01-dg03`
 
 Ports: master 9333, filer 8888 (S3 8333 if enabled), admin 23646, volume `8080 + <MM>` (dg01 is 8081).
 
+## Cluster address (all roles)
+
+Every container announces itself to the cluster (`-ip`), and the roles check registration, ports and raft membership,
+using the address `seaweed_ip`. When it is not set, `ansible_host` is used, so a single network needs no extra
+variable. Set it per alias (or per node) when SSH uses another network than the cluster:
+
+```yaml
+volume05-dg01: {ansible_host: 10.0.0.15, seaweed_ip: 192.168.50.15, ...}
+```
+
+`masters_list` must use the cluster addresses. The port and registration checks run on the managed node itself, so
+only that node needs to reach the cluster network; the control machine does not (except for the master leader lookup in
+`rolling_update`, which queries the first entry of `masters_list` from the control machine).
+
 ## Image (all roles)
 
 | Variable | Default | Notes |
@@ -93,6 +107,16 @@ filer_config_files:
 filer_s3_idle_timeout: 3600
 ```
 
+## Disks (`prepare_disks` playbook)
+
+| Variable | Default | Notes |
+|---|---|---|
+| `disks_filesystems` | `[]` | List of `{device, label, mount}` on the node; `device` must be a `/dev/disk/by-*` name, `label` 1-12 characters |
+| `disks_format` | `false` | Must be `true` to format; without it the run lists the empty disks and fails |
+| `disks_mount_options` | `defaults,noatime` | Mount options in `/etc/fstab` |
+| `disks_install_packages` | `true` | Install `xfsprogs` |
+| `disks_allow_unstable_names` | `false` | Allow `/dev/sdX` (throwaway tests only) |
+
 ## Common
 
 | Variable | Default | Notes |
@@ -100,8 +124,7 @@ filer_s3_idle_timeout: 3600
 | `docker_compose_dir` | `/opt/seaweed` | Base directory for all projects |
 | `container_prefix` | `""` | |
 | `health_check_timeout` | `60` | Seconds to wait for ports and cluster registration |
-| `common_sysctl` | `vm.swappiness: 10`, `net.core.somaxconn: 4096` | Applied by `common`; set `{}` to leave the kernel alone |
-| `common_base_dirs` | `docker_compose_dir`, `/data` | Created on every node |
+| `common_base_dirs` | `docker_compose_dir` | Created on every node |
 | `common_min_free_gb` | `10` | Free space required on each volume data dir (needs gathered facts) |
 
 ## Master

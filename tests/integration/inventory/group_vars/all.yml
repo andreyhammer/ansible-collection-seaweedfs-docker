@@ -9,10 +9,6 @@ masters_list:
   - 172.29.14.12:9333
   - 172.29.14.13:9333
 
-# Test nodes are privileged containers: never touch kernel settings that are not network-namespaced,
-# otherwise they would change the developer's host.
-common_sysctl:
-  net.core.somaxconn: 4096
 common_min_free_gb: 0
 
 # Tiny tmpfs disks: cap the number of volumes instead of letting SeaweedFS derive it from free space.

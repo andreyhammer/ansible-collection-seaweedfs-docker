@@ -33,6 +33,7 @@ ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.site
 | Upgrade volumes | `ansible-playbook andreyhammer.seaweedfs_docker.rolling_update -e seaweed_version=4.49` |
 | Upgrade masters (leader last) | `... rolling_update -e seaweed_version=4.49 -e target_group=master` |
 | Remove masters (in pairs) | `ansible-playbook andreyhammer.seaweedfs_docker.remove_masters -e target_masters=master04,master05` (see `docs/INSTALL.md`) |
+| Prepare data disks (XFS, mount by label) | `ansible-playbook andreyhammer.seaweedfs_docker.prepare_disks -e target_node=<host>` (formats only with `-e disks_format=true`; see `docs/INSTALL.md`) |
 | Add a node | `ansible-playbook andreyhammer.seaweedfs_docker.add_node -e target_node=node05` (a group with all aliases of the new node; see `docs/INSTALL.md`) |
 
 ## Image selection
@@ -72,7 +73,7 @@ development machine.
 ## Inventory model
 
 Each container instance is its own inventory alias (`master01`, `volume01-dg03`, `worker01-ec02`, ...) whose
-`ansible_host` is the node IP. Container names are `<container_prefix><role><NN>[-<sub><MM>]` with two-digit numbers.
+`ansible_host` is the node IP (set `seaweed_ip` when the cluster network differs from the SSH one). Container names are `<container_prefix><role><NN>[-<sub><MM>]` with two-digit numbers.
 Volume ports are `8080 + <MM>`. See `examples/inventory/` for a complete example and `docs/CONFIGURATION.md` for every variable.
 
 ## Secrets

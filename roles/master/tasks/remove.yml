@@ -3,14 +3,15 @@
 # runs it one master at a time. The weed shell commands run in a master container that stays in the cluster.
 - name: Work out the raft id and the master that stays
   ansible.builtin.set_fact:
-    master_raft_id: "{{ ansible_host }}:{{ master_port }}.{{ (master_port | int) + 10000 }}"
+    master_raft_id: "{{ seaweed_ip | default(ansible_host, true) }}:{{ master_port }}.{{ (master_port | int) + 10000 }}"
     master_keeper: "{{ groups['master'] | reject('in', master_remove_targets) | first }}"
 
 - name: Name the weed shell container of the master that stays
   ansible.builtin.set_fact:
     master_keeper_container: >-
       {{ container_prefix }}{{ container_role_master }}{{ '%02d' | format(hostvars[master_keeper].node_num | int) }}
-    master_keeper_address: "{{ hostvars[master_keeper].ansible_host }}:{{ master_port }}"
+    master_keeper_address: >-
+      {{ hostvars[master_keeper].seaweed_ip | default(hostvars[master_keeper].ansible_host, true) }}:{{ master_port }}
 
 - name: List the raft servers
   ansible.builtin.command:
@@ -29,6 +30,46 @@
       Nothing was changed for {{ inventory_hostname }}.
     quiet: true
   when: not ansible_check_mode
+
+# A raft leader cannot remove itself: `cluster.raft.remove` returns without error and the leader stays in the list.
+# So a leader is stopped first (the others elect a new one, which needs a majority of the current members: at least 3),
+# and then removed from the list like a dead member.
+- name: Detect whether this master is the raft leader
+  ansible.builtin.set_fact:
+    master_is_leader: >-
+      {{ master_raft_before.stdout_lines | select('search', master_raft_id | regex_escape) | select('search', 'Leader')
+         | list | length > 0 }}
+    master_raft_members: "{{ master_raft_before.stdout_lines | select('match', '^\\s*\\* ') | list | length }}"
+  when: not ansible_check_mode
+
+- name: Refuse to remove the leader of a two-member cluster
+  ansible.builtin.fail:
+    msg: >-
+      {{ inventory_hostname }} is the raft leader and the cluster has only {{ master_raft_members }} members: stopping
+      it would leave no majority, and a leader cannot remove itself. Nothing was changed. Remove the other master first,
+      or restart the masters until another one becomes leader.
+  when: not ansible_check_mode and master_is_leader | bool and master_raft_members | int < 3
+
+- name: Stop the leading master so that another one takes over
+  community.docker.docker_compose_v2:
+    project_src: "{{ master_project_dir }}"
+    state: absent
+  when: not ansible_check_mode and master_is_leader | bool
+
+- name: Wait for a new raft leader
+  ansible.builtin.command:
+    cmd: "docker exec -i {{ master_keeper_container }} weed shell -master={{ master_keeper_address }}"
+    stdin: "cluster.raft.ps"
+  delegate_to: "{{ master_keeper }}"
+  register: master_raft_leader_now
+  until: >-
+    master_raft_leader_now.stdout_lines | select('search', 'Leader')
+    | reject('search', master_raft_id | regex_escape) | list | length > 0
+  retries: 20
+  delay: 3
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode and master_is_leader | bool
 
 - name: Remove the master from the raft cluster
   ansible.builtin.command:

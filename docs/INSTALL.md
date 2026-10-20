@@ -39,7 +39,8 @@ pointing at its parent) because roles are referenced by their FQCN.
 
 Copy `examples/inventory/` and adapt it. The essentials:
 
-1. One inventory alias **per container**, with `ansible_host` set to the node IP (see "Inventory model" in the README).
+1. One inventory alias **per container**, with `ansible_host` set to the node IP (see "Inventory model" in the README). When SSH uses a different network than
+   the cluster, keep the SSH address in `ansible_host` and put the cluster address in `seaweed_ip` (see CONFIGURATION.md).
 2. `masters_list` in `group_vars/all.yml`: every master as `IP:PORT`.
 3. **`seaweed_large_disk: true|false` in `group_vars/all.yml`.** It is required and has no default, because the regular
    and the large_disk builds of the image are not interchangeable for existing data. Decide once for a cluster.
@@ -82,10 +83,37 @@ container start-up or the waits (they need the files to exist). Both cases are c
   running and that the admin port was reachable before it started. A worker that cannot connect (wrong address, broken
   gRPC, incompatible version) still shows as a running container.
 
+## Prepare data disks (optional)
+
+The roles only check that the data directories are mounted. For new hardware with blank disks, the `prepare_disks`
+playbook formats them with XFS, mounts them by label and writes `/etc/fstab`. Describe the disks on the **node** (a
+host variable, not on the container aliases), by their stable names:
+
+```yaml
+seaweed01-05.in.example.com:
+  disks_filesystems:
+    - {device: /dev/disk/by-id/ata-EXAMPLE_MODEL_SERIAL0001, label: hdd1, mount: /mnt/hdd1}
+    - {device: /dev/disk/by-id/ata-EXAMPLE_MODEL_SERIAL0002, label: hdd2, mount: /mnt/hdd2}
+```
+
+Find the names with `ls -l /dev/disk/by-id/` and `lsblk -o NAME,SIZE,SERIAL,MODEL,FSTYPE,MOUNTPOINT`; `/dev/sdX`
+names are refused because they change between boots. Then:
+
+1. `ansible-playbook andreyhammer.seaweedfs_docker.prepare_disks -e target_node=<host>`: lists what it found and
+   stops, because formatting is off by default.
+2. Review the list, then preview with `--check -e disks_format=true`.
+3. Run it with `-e disks_format=true`. Formatting cannot be undone.
+
+Safeguards: a disk that already has any signature (a filesystem, a RAID member, a partition table), has partitions or
+is mounted elsewhere stops the whole run before anything is changed (wipe it yourself if that is intended); `mkfs.xfs`
+is never forced; the filesystem label (at most 12 characters) is what `/etc/fstab` uses, so the mapping survives
+device renaming. Re-running is safe: disks that are already formatted with the right label are only mounted.
+Debian only; the package `xfsprogs` is installed unless `disks_install_packages: false`.
+
 ## Add a node (new hardware)
 
 1. Prepare the machine: Debian, SSH access, Docker Engine and the `docker compose` plugin, data disks mounted at the
-   paths you will list in `volume_data_dirs`.
+   paths you will list in `volume_data_dirs` (blank disks: see "Prepare data disks" above).
 2. Add **every alias that will run on it** to the inventory (filer, volume servers, workers, ...), each with the new
    node's IP in `ansible_host` and the next node number (for example `volume05-dg01`, `worker05-ec01`, `filer05`).
 3. Put those aliases into one group named after the node, so that you can address the whole node by one name:
@@ -162,7 +190,9 @@ master, add two new ones first and then remove the old one together with one of 
    For each master the playbook checks that it is a raft member, runs `cluster.raft.remove` from a master that stays,
    waits until `cluster.raft.ps` no longer lists it and then removes its container. The project directory (compose file
    and raft data) is kept: delete it by hand once you are sure. A single master, or any number that would leave an
-   even list, is rejected before anything changes.
+   even list, is rejected before anything changes. A **leader cannot remove itself**, so when the master being removed
+   is the current leader, the playbook stops it first (the others elect a new leader) and then removes it from the
+   list; this needs at least three raft members, otherwise it stops with an explanation and changes nothing.
 2. Delete the aliases from the inventory and from `masters_list`.
 3. Refresh the other services, as in step 4 of "Add masters" (same version; the leader is restarted last), and run
    `site` once more: it must report no changes.
@@ -170,8 +200,8 @@ master, add two new ones first and then remove the old one together with one of 
 Tested: going from three masters to five and back to three, with every service refreshed afterwards. **Not tested:**
 removing a master whose server is already dead (in a manual probe `cluster.raft.remove` worked for a member whose
 container had been stopped, but the playbook cannot reach a dead host to stop its container, so it would fail on that
-step; remove the member by hand with `cluster.raft.remove -id <ip>:9333.19333` in `weed shell`) and removing the
-current leader.
+step; remove the member by hand with `cluster.raft.remove -id <ip>:9333.19333` in `weed shell`). Removing the leader
+of a three-or-more-member cluster is tested; the two-member case is only refused.
 
 ## Try it safely first
 

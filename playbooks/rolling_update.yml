@@ -6,6 +6,11 @@
   gather_facts: false
   become: false
   tasks:
+    - name: Record the cluster address of every host
+      ansible.builtin.set_fact:
+        seaweed_node_ip: "{{ seaweed_ip | default(ansible_host, true) }}"
+      when: (target_group | default('volume')) == 'master'
+
     - name: Find the current master leader
       ansible.builtin.uri:
         url: "http://{{ masters_list | first }}/cluster/status"
@@ -18,7 +23,7 @@
     - name: Resolve the leader alias
       ansible.builtin.set_fact:
         rolling_leader_aliases: >-
-          {{ dict(ansible_play_hosts_all | zip(ansible_play_hosts_all | map('extract', hostvars, 'ansible_host')))
+          {{ dict(ansible_play_hosts_all | zip(ansible_play_hosts_all | map('extract', hostvars, 'seaweed_node_ip')))
              | dict2items
              | selectattr('value', 'equalto', (rolling_cluster_status.json.Leader | default('')).split(':') | first)
              | map(attribute='key') | list }}
@@ -72,5 +77,7 @@
               Upgrade of {{ inventory_hostname }} failed; the rolling update is stopped.
               Reason: {{ ansible_failed_result.msg | default('unknown') }}
               {{ 'The volume server may still be in maintenance mode. Re-run the update, or run in weed shell:'
-                 ~ ' volumeServer.state -nodes ' ~ ansible_host ~ ':' ~ (8080 + (volume_dg | int)) ~ ' -maintenanceOff'
+                 ~ ' volumeServer.state -nodes ' ~ (seaweed_ip | default(ansible_host, true))
+                 ~ ':' ~ (8080 + (volume_dg | int))
+                 ~ ' -maintenanceOff'
                  if 'volume' in group_names else '' }}

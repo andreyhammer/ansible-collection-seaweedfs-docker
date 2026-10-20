@@ -18,7 +18,7 @@
     volume_ec_nodes: >-
       {{ ((volume_ec_topology.json | default({})).get('Topology', {})).get('DataCenters', [])
          | map(attribute='Racks') | flatten | map(attribute='DataNodes') | flatten
-         | selectattr('Url', 'equalto', ansible_host ~ ':' ~ volume_port) | list }}
+         | selectattr('Url', 'equalto', (seaweed_ip | default(ansible_host, true)) ~ ':' ~ volume_port) | list }}
     volume_ec_shards_registered: "{{ (volume_ec_nodes | map(attribute='EcShards') | first | default(0)) | int }}"
 
 - name: Remember the EC shard count
@@ -26,5 +26,5 @@
     volume_ec_shards_now: >-
       {{ (((volume_ec_topology.json | default({})).get('Topology', {})).get('DataCenters', [])
           | map(attribute='Racks') | flatten | map(attribute='DataNodes') | flatten
-          | selectattr('Url', 'equalto', ansible_host ~ ':' ~ volume_port)
+          | selectattr('Url', 'equalto', (seaweed_ip | default(ansible_host, true)) ~ ':' ~ volume_port)
           | map(attribute='EcShards') | first | default(0)) | int }}

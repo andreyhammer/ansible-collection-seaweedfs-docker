@@ -65,7 +65,7 @@
 
 - name: Wait for the admin port
   ansible.builtin.wait_for:
-    host: "{{ ansible_host if admin_exposed | bool else '127.0.0.1' }}"
+    host: "{{ (seaweed_ip | default(ansible_host, true)) if admin_exposed | bool else '127.0.0.1' }}"
     port: "{{ admin_port }}"
     timeout: "{{ health_check_timeout }}"
   when: not ansible_check_mode

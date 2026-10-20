@@ -14,11 +14,6 @@ health_check_timeout: 60
 # Base directories created on every node.
 common_base_dirs:
   - "{{ docker_compose_dir }}"
-  - /data
-
-common_sysctl:
-  vm.swappiness: 10
-  net.core.somaxconn: 4096
 
 # Minimum free space (GiB) required on every volume data dir.
 common_min_free_gb: 10

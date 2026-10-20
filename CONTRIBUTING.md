@@ -34,8 +34,8 @@ SEAWEED_TEST_LARGE_DISK=1 tests/integration/run.sh test  # the same with the lar
 tests/integration/run.sh up|deploy|verify|idempotence|dryrun|guard|update|down   # single steps
 ```
 
-The nodes are **privileged** containers, so use a development machine. Do not relax `common_sysctl` in the test
-inventory: sysctls that are not network-namespaced (such as `vm.swappiness`) would change your host.
+The nodes are **privileged** containers, so use a development machine: the loop devices created by the disks test
+and any kernel setting that is not namespaced are shared with your host. The roles never change kernel parameters.
 
 Add a check to `tests/integration/` for every behavior you change or add, and say in the pull request what you ran.
 

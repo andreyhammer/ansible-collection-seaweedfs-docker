@@ -61,14 +61,14 @@
 
 - name: Wait for the filer port
   ansible.builtin.wait_for:
-    host: "{{ ansible_host }}"
+    host: "{{ (seaweed_ip | default(ansible_host, true)) }}"
     port: "{{ filer_port }}"
     timeout: "{{ health_check_timeout }}"
   when: not ansible_check_mode
 
 - name: Wait for the S3 gateway port
   ansible.builtin.wait_for:
-    host: "{{ ansible_host }}"
+    host: "{{ (seaweed_ip | default(ansible_host, true)) }}"
     port: "{{ filer_s3_port }}"
     timeout: "{{ health_check_timeout }}"
   when: filer_s3_enabled | bool and not ansible_check_mode

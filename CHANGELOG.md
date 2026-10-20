@@ -13,6 +13,12 @@
 - `CONTRIBUTING.md` and issue templates.
 - Early rejection of an even number of masters; documented and tested procedure for adding two masters to a running
   cluster, and for adding a brand-new node with `add_node` by its inventory group.
+- Role `disks` and playbook `prepare_disks`: formats blank disks with XFS (only with `disks_format=true`), mounts them by
+  label and writes `/etc/fstab`; refuses disks that carry any signature.
+- `remove_masters` handles the raft leader (stops it first; a leader cannot remove itself).
+- `/data` is no longer created on the host (only `docker_compose_dir`).
+- The roles do not change kernel parameters (no sysctl); `common_sysctl` does not exist.
+- `seaweed_ip`: cluster address that may differ from `ansible_host` (defaults to it).
 - Configurable extra options: `<role>_extra_args`, `<role>_environment` (plus global `seaweed_environment`),
   `<role>_extra_volumes`, `<role>_config_files`, `<role>_logging`, `seaweed_localtime`, and dedicated variables for
   `-defaultReplication`, `-volumeSizeLimitMB`, `-index`, `-dataCenter`, `-preStopSeconds`, `-minFreeSpace`,

@@ -1,0 +1,22 @@
+---
+# Usage: ansible-playbook andreyhammer.seaweedfs_docker.prepare_disks -e "target_node=<host>" [-e disks_format=true]
+# Formats empty disks with XFS (only with disks_format=true), mounts them by label and adds them to /etc/fstab.
+# The disks come from the host variable `disks_filesystems`; see roles/disks/defaults/main.yml.
+- name: Validate input
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Require target_node
+      ansible.builtin.assert:
+        that: target_node is defined
+        fail_msg: "Pass the host or group to prepare with -e target_node=<host>."
+        quiet: true
+
+- name: Prepare data disks
+  hosts: "{{ target_node | default('target_node_is_not_set') }}"
+  gather_facts: false
+  become: true
+  serial: 1
+  roles:
+    - role: andreyhammer.seaweedfs_docker.disks
+      tags: [disks]

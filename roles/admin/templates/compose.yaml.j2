@@ -35,7 +35,7 @@ services:
 {% if admin_bind_ip | length > 0 %}
       - -ip={{ admin_bind_ip }}
 {% elif admin_allow_insecure_bind | bool and admin_password | length == 0 %}
-      - -ip={{ ansible_host }}
+      - -ip={{ (seaweed_ip | default(ansible_host, true)) }}
 {% endif %}
 {% if admin_allow_insecure_bind | bool %}
       - -allowInsecureBind

@@ -49,7 +49,7 @@ volume_project_dir: "{{ docker_compose_dir }}/{{ volume_container_name }}"
 # Maintenance mode used by rolling_update (shell command piped to `weed shell` inside a master container).
 volume_maintenance_enabled: "{{ volume_maintenance | default(false) }}"
 volume_maintenance_command: >-
-  lock; volumeServer.state -nodes {{ ansible_host }}:{{ volume_port }}
+  lock; volumeServer.state -nodes {{ (seaweed_ip | default(ansible_host, true)) }}:{{ volume_port }}
   {{ '-maintenanceOn' if volume_maintenance_enabled | bool else '-maintenanceOff' }}; unlock
 
 # Extra options (all roles). *_extra_args are appended to the command; *_environment is merged over

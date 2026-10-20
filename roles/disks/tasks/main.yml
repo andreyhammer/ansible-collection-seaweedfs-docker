@@ -1,0 +1,133 @@
+---
+- name: Validate the disk list
+  ansible.builtin.assert:
+    that:
+      - disks_filesystems | length > 0
+      - disks_filesystems | map(attribute='device') | list | unique | length == disks_filesystems | length
+      - disks_filesystems | map(attribute='label') | list | unique | length == disks_filesystems | length
+      - disks_filesystems | map(attribute='mount') | list | unique | length == disks_filesystems | length
+      - item.device is match('^/dev/disk/by-') or disks_allow_unstable_names | bool
+      - item.label is match('^[A-Za-z0-9_-]{1,12}$')
+      - item.mount is match('^/[^ ]+$')
+    fail_msg: >-
+      Invalid entry {{ item }}: devices, labels and mount points must be unique; a device must be a stable
+      /dev/disk/by-* name; a label has 1-12 letters, digits, '_' or '-'; a mount point is an absolute path.
+    quiet: true
+  loop: "{{ disks_filesystems }}"
+  loop_control:
+    label: "{{ item.device | default('?') }}"
+
+- name: Install the XFS tools
+  ansible.builtin.apt:
+    name: xfsprogs
+    state: present
+    cache_valid_time: 3600
+  when: disks_install_packages | bool
+
+- name: Inspect the devices
+  ansible.builtin.command: "lsblk --json --output NAME,TYPE,FSTYPE,LABEL,MOUNTPOINTS {{ item.device | quote }}"
+  loop: "{{ disks_filesystems }}"
+  loop_control:
+    label: "{{ item.device }}"
+  register: disks_lsblk
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# lsblk takes filesystem data from the udev database, which can be missing or stale, so every disk is also probed
+# directly: blkid -p reads the device itself (exit 2 means: no signature at all).
+- name: Probe the devices for signatures
+  ansible.builtin.command: "blkid --probe --output export {{ item.device | quote }}"
+  loop: "{{ disks_filesystems }}"
+  loop_control:
+    label: "{{ item.device }}"
+  register: disks_blkid
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# State per disk: missing (not found), busy (partitions or other mounts), foreign (a filesystem or signature that
+# is not the wanted one), empty (nothing on it: may be formatted), ready (already formatted, labelled and not mounted
+# anywhere else).
+- name: Classify the devices
+  ansible.builtin.set_fact:
+    disks_plan_json: >-
+      {% set ns = namespace(out=[]) %}
+      {% for r in disks_lsblk.results %}
+      {%   set d = (r.stdout | from_json).blockdevices[0] if r.rc == 0 else {} %}
+      {%   set b = disks_blkid.results[loop.index0] %}
+      {%   set sig = {'TYPE': b.stdout | regex_findall('(?m)^TYPE=(.*)$') | first | default(''),
+                       'LABEL': b.stdout | regex_findall('(?m)^LABEL=(.*)$') | first | default(''),
+                       'PTTYPE': b.stdout | regex_findall('(?m)^PTTYPE=(.*)$') | first | default('')} %}
+      {%   set mps = (d.mountpoints | default([]) | select | list) %}
+      {%   if r.rc != 0 or b.rc not in [0, 2] %}{% set st = 'missing' %}
+      {%   elif d.children is defined or d.type not in ['disk', 'loop'] %}{% set st = 'busy' %}
+      {%   elif b.rc == 2 and not d.fstype and mps | length == 0 %}{% set st = 'empty' %}
+      {%   elif sig.TYPE == 'xfs' and sig.LABEL == r.item.label
+               and mps | difference([r.item.mount]) | length == 0 %}
+      {%     set st = 'ready' %}
+      {%   else %}{% set st = 'foreign' %}
+      {%   endif %}
+      {%   set ns.out = ns.out + [{'device': r.item.device, 'label': r.item.label, 'mount': r.item.mount, 'state': st,
+                                    'found': ((sig.TYPE or sig.PTTYPE) ~ ' ' ~ sig.LABEL ~ ' '
+                                              ~ mps | join(',')) | trim}] %}
+      {% endfor %}
+      {{ ns.out | to_json }}
+
+- name: Parse the plan
+  ansible.builtin.set_fact:
+    disks_plan: "{{ disks_plan_json | trim | from_json }}"
+
+- name: Show the plan
+  ansible.builtin.debug:
+    msg: >-
+      {{ disks_plan | map(attribute='device') | zip(disks_plan | map(attribute='state'))
+      | map('join', ': ') | list }}
+
+- name: Refuse to touch devices that are not empty or not wanted
+  ansible.builtin.fail:
+    msg: >-
+      Refusing to continue on {{ inventory_hostname }}. These devices are missing, hold partitions, are mounted
+      elsewhere or carry another filesystem (nothing was changed; wipe them yourself if that is intended):
+      {{ disks_plan | rejectattr('state', 'in', ['empty', 'ready']) | list }}
+  when: disks_plan | rejectattr('state', 'in', ['empty', 'ready']) | list | length > 0
+
+- name: Refuse to format without confirmation
+  ansible.builtin.fail:
+    msg: >-
+      {{ disks_plan | selectattr('state', 'equalto', 'empty') | list | length }} empty disk(s) would be formatted
+      with XFS on {{ inventory_hostname }}: {{ disks_plan | selectattr('state', 'equalto', 'empty')
+      | map(attribute='device') | list }}. Check the list, run with --check -e disks_format=true to preview, then run
+      with -e disks_format=true. Formatting cannot be undone.
+  when:
+    - disks_plan | selectattr('state', 'equalto', 'empty') | list | length > 0
+    - not disks_format | bool
+
+# No -f: mkfs.xfs itself refuses a disk that already has a filesystem.
+- name: Format the empty disks
+  ansible.builtin.command: "mkfs.xfs -L {{ item.label | quote }} {{ item.device | quote }}"
+  loop: "{{ disks_plan | selectattr('state', 'equalto', 'empty') | list }}"
+  loop_control:
+    label: "{{ item.device }} -> {{ item.label }}"
+  changed_when: true
+  when: disks_format | bool and not ansible_check_mode
+
+- name: Create the mount points
+  ansible.builtin.file:
+    path: "{{ item.mount }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ disks_filesystems }}"
+  loop_control:
+    label: "{{ item.mount }}"
+
+- name: Mount the disks and add them to /etc/fstab
+  ansible.posix.mount:
+    src: "LABEL={{ item.label }}"
+    path: "{{ item.mount }}"
+    fstype: xfs
+    opts: "{{ disks_mount_options }}"
+    state: mounted
+  loop: "{{ disks_filesystems }}"
+  loop_control:
+    label: "{{ item.mount }}"

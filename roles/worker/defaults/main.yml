@@ -10,7 +10,9 @@ container_role_admin: admin
 health_check_timeout: 60
 
 # Admin address "host:port". Defaults to the first host of the `admin` group.
-worker_admin_address: "{{ hostvars[groups['admin'] | first].ansible_host }}:23646"
+worker_admin_address: >-
+  {% set admin_host = hostvars[groups['admin'] | first] -%}
+  {{ admin_host.seaweed_ip | default(admin_host.ansible_host, true) }}:23646
 
 # Job suffix -> job type and instances per node. Used to validate inventory aliases.
 worker_jobs:

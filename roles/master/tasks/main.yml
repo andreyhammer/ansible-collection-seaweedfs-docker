@@ -53,7 +53,7 @@
 
 - name: Wait for the master port
   ansible.builtin.wait_for:
-    host: "{{ ansible_host }}"
+    host: "{{ (seaweed_ip | default(ansible_host, true)) }}"
     port: "{{ master_port }}"
     timeout: "{{ health_check_timeout }}"
   when: not ansible_check_mode
@@ -62,7 +62,7 @@
 # about its own view: it must see a leader and every other configured master.
 - name: Verify the master has joined the raft cluster
   ansible.builtin.uri:
-    url: "http://{{ ansible_host }}:{{ master_port }}/cluster/status"
+    url: "http://{{ (seaweed_ip | default(ansible_host, true)) }}:{{ master_port }}/cluster/status"
     return_content: true
   register: master_cluster_status
   until:

@@ -35,10 +35,7 @@ masters: "{{ masters_list | join(',') }}"
 #   driver: json-file
 #   options: {max-size: 10m, max-file: "3"}
 
-# Pre-flight (role common). Set common_sysctl to {} to leave the kernel alone.
-# common_sysctl:
-#   vm.swappiness: 10
-#   net.core.somaxconn: 4096
-# common_base_dirs: ["{{ docker_compose_dir }}", /data]
+# Pre-flight (role common). The roles never change kernel parameters.
+# common_base_dirs: ["{{ docker_compose_dir }}"]
 # Free space (GiB) required on every volume data dir.
 # common_min_free_gb: 10

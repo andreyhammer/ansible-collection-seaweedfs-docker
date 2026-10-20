@@ -136,7 +136,7 @@
 
 - name: Wait for the volume port
   ansible.builtin.wait_for:
-    host: "{{ ansible_host }}"
+    host: "{{ (seaweed_ip | default(ansible_host, true)) }}"
     port: "{{ volume_port }}"
     timeout: "{{ health_check_timeout }}"
   when: not ansible_check_mode
@@ -146,7 +146,7 @@
     name: andreyhammer.seaweedfs_docker.common
     tasks_from: cluster_status
   vars:
-    seaweed_expected_node: "{{ ansible_host }}:{{ volume_port }}"
+    seaweed_expected_node: "{{ (seaweed_ip | default(ansible_host, true)) }}:{{ volume_port }}"
     seaweed_status_path: /dir/status
   when: not ansible_check_mode
 

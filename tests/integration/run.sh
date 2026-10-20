@@ -2,7 +2,7 @@
 # Integration tests on disposable Docker-in-Docker nodes. Nothing here touches real hosts.
 #
 #   ./run.sh test     full run: up, deploy, verify, idempotence, rolling update, down
-#   ./run.sh up|deploy|verify|idempotence|dryrun|addnode|masters|removemasters|ecshards|maintenance|failpath|guard|update|down|shell <node>
+#   ./run.sh up|deploy|verify|idempotence|dryrun|addnode|masters|removemasters|ecshards|maintenance|failpath|guard|disks|update|down|shell <node>
 #
 # Env: KEEP=1 keeps the nodes after `test`.
 #      SEAWEED_TEST_LARGE_DISK=1 tests the official large_disk build instead of the regular one.
@@ -330,7 +330,7 @@ failpath() {
     fi
     grep -q 'the rolling update is stopped' <<<"$out" || { tail -20 <<<"$out" >&2; fail "no stop message" || return 1; }
     grep -q 'maintenanceOff' <<<"$out" || fail "the error message does not tell how to leave maintenance mode" || return 1
-    hosts_run=$(awk '/PLAY RECAP/{r=1;n=0;next} r&&/ : ok=/{n++} END{print n}' <<<"$out")
+    hosts_run=$(awk '/PLAY RECAP/{r=1;n=0;next} r&&/ : ok=[1-9]/{n++} END{print n}' <<<"$out")
     [[ $hosts_run == 1 ]] || fail "$hosts_run hosts were touched, expected only the first" || return 1
     echo "  OK stopped at the first volume server (the others were not touched)"
     verify test-a
@@ -349,6 +349,7 @@ failpath() {
 # Remove the two extra masters again (5 -> 3) and refresh every service with the shorter list.
 remove_masters() {
     local out
+    export ANSIBLE_INVENTORY="$HERE/inventory/hosts.yml,$HERE/inventory-masters/hosts.yml"
     log "Remove masters: removing a single master (an even list would remain) must be rejected"
     if out=$(ansible-playbook "$COLLECTION.remove_masters" "${EXTRA_VARS[@]}" -e target_masters=master05 2>&1); then
         fail "removing one of five masters was accepted" || return 1
@@ -356,8 +357,21 @@ remove_masters() {
     grep -q 'Remove masters in pairs' <<<"$out" || { tail -15 <<<"$out" >&2; fail "rejected, but not for the right reason" || return 1; }
     echo "  OK removing a single master is rejected"
 
-    log "Remove masters: master04 and master05 leave the raft cluster"
-    ansible-playbook "$COLLECTION.remove_masters" "${EXTRA_VARS[@]}" -e target_masters=master04,master05
+    log "Remove masters: master04 and master05 leave the raft cluster (one of them is made the leader first)"
+    local leader_ip i
+    for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        leader_ip=$(weed_shell <<<"cluster.raft.ps" | sed -n 's/^ *\* \(172\.29\.14\.[0-9]*\):.*(Leader).*/\1/p')
+        [[ $leader_ip == 172.29.14.14 || $leader_ip == 172.29.14.15 ]] && break
+        echo "  leader is ${leader_ip:-unknown}, restarting it to get another election"
+        [[ -n $leader_ip ]] && docker exec "swfs-test-node0$((${leader_ip##*.} - 10))" docker restart "master0$((${leader_ip##*.} - 10))" >/dev/null
+        sleep 15
+    done
+    [[ $leader_ip == 172.29.14.14 || $leader_ip == 172.29.14.15 ]] || fail "could not make master04 or master05 the leader" || return 1
+    echo "  leader before the removal: $leader_ip"
+    out=$(ansible-playbook "$COLLECTION.remove_masters" "${EXTRA_VARS[@]}" -e target_masters=master04,master05 2>&1) \
+        || { tail -40 <<<"$out" >&2; fail "remove_masters failed" || return 1; }
+    grep -A1 'Stop the leading master' <<<"$out" | grep -q 'changed:' || fail "the leader was not removed through the leader path" || return 1
+    echo "  OK the leader was stopped first and then removed"
     weed_shell <<<"cluster.raft.ps" | grep -q 'has 3 servers' || fail "the raft cluster does not have 3 servers" || return 1
     for out in node04:master04 node05:master05; do
         [[ -z $(docker exec "swfs-test-${out%%:*}" docker ps -q --filter "name=^${out##*:}$") ]] \
@@ -443,6 +457,67 @@ ownership() {
     echo "OK: ownership repaired"
 }
 
+# The disks role on loop devices (node05 is not used by the cluster services): refuses without confirmation, refuses
+# foreign data, previews with --check, formats, mounts by label and is idempotent.
+disks() {
+    log "Disks: format and mount loop devices through /dev/disk/by-id names"
+    local n=172.29.14.15 out i
+    docker exec swfs-test-node05 sh -c '
+        set -e
+        mkdir -p /dev/disk/by-id /var/tmp/disks
+        for i in 1 2 3; do
+            truncate -s 300M /var/tmp/disks/d$i.img
+            dev=$(losetup -f)
+            [ -b "$dev" ] || mknod "$dev" b 7 "${dev#/dev/loop}"
+            losetup "$dev" /var/tmp/disks/d$i.img
+            ln -sfn "$dev" /dev/disk/by-id/test-disk$i
+        done
+        mkfs.ext4 -q -L precious /dev/disk/by-id/test-disk3'
+    local vars=(-e target_node=$n -i "$n," -e '{"disks_filesystems": [
+        {"device": "/dev/disk/by-id/test-disk1", "label": "tdisk1", "mount": "/mnt/tdisk1"},
+        {"device": "/dev/disk/by-id/test-disk2", "label": "tdisk2", "mount": "/mnt/tdisk2"}]}')
+    if out=$(ansible-playbook "$COLLECTION.prepare_disks" "${vars[@]}" 2>&1); then
+        echo "FAIL: empty disks were formatted without disks_format=true" >&2
+        return 1
+    fi
+    grep -q 'empty disk(s) would be formatted' <<<"$out" || { echo "FAIL: wrong error" >&2; tail -20 <<<"$out" >&2; return 1; }
+    echo "OK: nothing is formatted without confirmation"
+
+    if out=$(ansible-playbook "$COLLECTION.prepare_disks" -e target_node=$n -i "$n," -e disks_format=true -e '{"disks_filesystems": [
+        {"device": "/dev/disk/by-id/test-disk1", "label": "tdisk1", "mount": "/mnt/tdisk1"},
+        {"device": "/dev/disk/by-id/test-disk3", "label": "tdisk3", "mount": "/mnt/tdisk3"}]}' 2>&1); then
+        echo "FAIL: a disk with another filesystem was accepted" >&2
+        return 1
+    fi
+    grep -q 'Refusing to continue' <<<"$out" || { echo "FAIL: wrong error" >&2; tail -20 <<<"$out" >&2; return 1; }
+    [[ -z $(docker exec swfs-test-node05 blkid -s TYPE -o value /dev/disk/by-id/test-disk1) ]] \
+        || { echo "FAIL: a disk was formatted although another one was refused" >&2; return 1; }
+    [[ $(docker exec swfs-test-node05 blkid -s LABEL -o value /dev/disk/by-id/test-disk3) == precious ]] \
+        || { echo "FAIL: the foreign filesystem was touched" >&2; return 1; }
+    echo "OK: a foreign filesystem is refused and nothing else is changed"
+
+    ansible-playbook "$COLLECTION.prepare_disks" "${vars[@]}" -e disks_format=true --check
+    [[ -z $(docker exec swfs-test-node05 blkid -s TYPE -o value /dev/disk/by-id/test-disk1) ]] \
+        || { echo "FAIL: --check formatted a disk" >&2; return 1; }
+    echo "OK: --check formats nothing"
+
+    ansible-playbook "$COLLECTION.prepare_disks" "${vars[@]}" -e disks_format=true
+    for i in 1 2; do
+        docker exec swfs-test-node05 sh -c "findmnt -n -o SOURCE,FSTYPE /mnt/tdisk$i | grep -q xfs && grep -q 'LABEL=tdisk$i /mnt/tdisk$i xfs defaults,noatime' /etc/fstab" \
+            || { echo "FAIL: tdisk$i is not mounted by label or missing in fstab" >&2; return 1; }
+    done
+    echo "OK: formatted with XFS, mounted by label, listed in fstab"
+
+    out=$(ansible-playbook "$COLLECTION.prepare_disks" "${vars[@]}" 2>&1)
+    grep -qE 'changed=0 .*failed=0' <<<"$out" || { echo "FAIL: second run was not idempotent" >&2; tail -20 <<<"$out" >&2; return 1; }
+    echo "OK: idempotent"
+
+    docker exec swfs-test-node05 sh -c '
+        umount /mnt/tdisk1 /mnt/tdisk2; sed -i "/tdisk[12]/d" /etc/fstab
+        for i in 1 2 3; do losetup -d "$(readlink -f /dev/disk/by-id/test-disk$i)"; rm -f /dev/disk/by-id/test-disk$i; done
+        rm -rf /var/tmp/disks /mnt/tdisk1 /mnt/tdisk2'
+}
+
 down() {
     log "Removing test nodes and volumes"
     docker compose down -v --remove-orphans
@@ -461,6 +536,7 @@ case ${1:-test} in
     removemasters) remove_masters ;;
     ecshards) ec_shards ;;
     guard) guard ;;
+    disks) disks ;;
     update) update ;;
     down) down ;;
     shell) docker exec -it "swfs-test-${2:?node name, e.g. node01}" sh ;;
@@ -476,6 +552,7 @@ case ${1:-test} in
         add_masters
         idempotence
         guard
+        disks
         ownership
         maintenance_effect
         failpath
