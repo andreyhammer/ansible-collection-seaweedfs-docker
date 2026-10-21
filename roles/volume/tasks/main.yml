@@ -39,6 +39,42 @@
     mode: "0755"
   loop: "{{ volume_data_dirs }}"
 
+# The index files (.ldb, .idx and the .ecx of EC volumes) live in the index directory. Starting on a different or no
+# index directory would hide them, so refuse when one is left over from another layout (an earlier version used
+# <project dir>/index).
+- name: Look for index directories that are not in use
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ volume_project_dir }}/index"
+    - "{{ volume_project_dir }}/idx"
+  register: volume_stray_index_stat
+
+- name: Look for files in them
+  ansible.builtin.find:
+    paths: "{{ item.item }}"
+    file_type: any
+    hidden: true
+  loop: "{{ volume_stray_index_stat.results | selectattr('stat.exists') | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+  register: volume_stray_index
+  check_mode: false
+
+- name: Collect the index directories that are not in use
+  ansible.builtin.set_fact:
+    volume_stray_index_dirs: >-
+      {{ volume_stray_index.results | selectattr('matched', 'gt', 0) | map(attribute='item.item')
+      | reject('equalto', volume_index_dir) | list }}
+
+- name: Refuse to start without the existing index directory
+  ansible.builtin.fail:
+    msg: >-
+      {{ volume_stray_index_dirs | join(', ') }} holds files, but volume_index_dir is "{{ volume_index_dir }}".
+      Starting like this would hide the index files. Set volume_index_dir to that directory, or stop the container
+      and move the files to the directory you want.
+  when: volume_stray_index_dirs | length > 0
+
 - name: Create the index directory
   ansible.builtin.file:
     path: "{{ volume_index_dir }}"
@@ -46,6 +82,7 @@
     owner: "{{ volume_container_uid }}"
     group: "{{ volume_container_gid }}"
     mode: "0755"
+  when: volume_index_dir | length > 0
 
 - name: Deploy config files
   ansible.builtin.include_role:
@@ -72,7 +109,7 @@
       - ")"
       - -print
       - -quit
-  loop: "{{ volume_data_dirs + [volume_index_dir] }}"
+  loop: "{{ volume_data_dirs + ([volume_index_dir] if volume_index_dir | length > 0 else []) }}"
   register: volume_foreign_files
   changed_when: false
   failed_when: false

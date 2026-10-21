@@ -2,7 +2,8 @@
 volume_data_center: dc1
 volume_disk_type_default: hdd
 volume_max_volumes: 0
-volume_index_dir: "{{ volume_project_dir }}/index"
+# Index files (.ldb, .idx, .ecx) on a faster disk instead of next to the data; leave unset to keep them together.
+volume_index_dir: "{{ volume_project_dir }}/idx"
 
 # ---- Optional settings ---------------------------------------------------------------------------------------
 # Per alias (set in hosts.yml): volume_node_num, volume_dg, volume_data_dirs, volume_rack (-rack), and optionally

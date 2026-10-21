@@ -30,7 +30,7 @@ volume_min_free_space: ""
 # Set to /usr/bin/weed to bypass the image entrypoint (the container then runs as root).
 volume_entrypoint: ""
 
-# The image entrypoint only fixes ownership of /data itself, not of mounted /data/diskN or /cache,
+# The image entrypoint only fixes ownership of /data itself, not of mounted /data/diskN or /idx,
 # so the host directories must belong to the container user (the image's `seaweed` user).
 volume_container_uid: 1000
 volume_container_gid: 1000
@@ -43,7 +43,9 @@ volume_ec_check: true
 volume_ec_register_timeout: 300
 volume_rack: ""
 volume_disk_type: "{{ volume_disk_type_default }}"
-volume_index_dir: "{{ volume_project_dir }}/index"
+# Empty = no -dir.idx: SeaweedFS keeps the index files next to the data (the simplest layout). A directory, usually on
+# an SSD, is mounted at /idx and passed as -dir.idx; it must then be backed up together with the data directories.
+volume_index_dir: ""
 
 volume_container_name: >-
   {{ container_prefix }}{{ container_role_volume }}{{ '%02d' | format(volume_node_num | int) }}

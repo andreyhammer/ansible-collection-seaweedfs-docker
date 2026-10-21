@@ -21,7 +21,9 @@ services:
 {% for dir in volume_data_dirs %}
       - {{ dir }}:/data/disk{{ loop.index }}
 {% endfor %}
-      - {{ volume_index_dir }}:/cache
+{% if volume_index_dir | length > 0 %}
+      - {{ volume_index_dir }}:/idx
+{% endif %}
 {% for cfg in volume_config_files %}
       - {{ cfg.dest }}:{{ cfg.container_path }}{{ ':ro' if cfg.read_only | default(true) | bool else '' }}
 {% endfor %}
@@ -42,7 +44,9 @@ services:
       - -ip={{ (seaweed_ip | default(ansible_host, true)) }}
       - -dir={% for dir in volume_data_dirs %}/data/disk{{ loop.index }}{{ ',' if not loop.last else '' }}{% endfor %}
 
-      - -dir.idx=/cache
+{% if volume_index_dir | length > 0 %}
+      - -dir.idx=/idx
+{% endif %}
       - -disk={{ volume_disk_type }}
 {% if volume_rack | length > 0 %}
       - -rack={{ volume_rack }}

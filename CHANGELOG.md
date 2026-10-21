@@ -44,3 +44,8 @@
   are mounted into `/etc/seaweedfs/`; SeaweedFS silently skips a TOML file with a syntax error.
 - Volume containers get a `stop_grace_period` (`volume_stop_grace_seconds`, default `-preStopSeconds` + 30 s). Docker's
   default of 10 s killed the server while it was still in its pre-stop sleep, before it closed its files and indexes.
+- `volume_index_dir` is empty by default: no `-dir.idx`, the index files stay next to the data. When set, the host
+  directory (for example `<container dir>/idx`) is mounted at `/idx` in the container (earlier the fixed `index` and
+  `/cache`; `/idx` is the name the official Helm chart uses). The volume role refuses to run when an `index` or `idx`
+  directory with files exists in the container directory and is not the configured one, so an empty or missing index is
+  never started by accident.

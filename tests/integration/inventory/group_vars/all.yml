@@ -31,6 +31,7 @@ seaweed_logging:
 master_default_replication: "010"
 master_volume_size_limit_mb: 64
 volume_index_type: leveldbLarge
+volume_index_dir: "{{ volume_project_dir }}/idx"
 volume_data_center: dc1
 volume_pre_stop_seconds: 5
 volume_min_free_space: 1
