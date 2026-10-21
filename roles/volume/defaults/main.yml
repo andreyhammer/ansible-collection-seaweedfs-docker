@@ -22,6 +22,10 @@ volume_max_volumes: 0
 volume_index_type: ""
 volume_data_center: ""
 volume_pre_stop_seconds: ""
+# Time Docker waits after SIGTERM before SIGKILL. The server first sleeps -preStopSeconds (10 s when unset) and only
+# then closes its files and indexes, so this must exceed it; the default adds a margin of 30 s.
+volume_stop_grace_seconds: >-
+  {{ ((volume_pre_stop_seconds | string | length > 0) | ternary(volume_pre_stop_seconds | int, 10)) + 30 }}
 volume_min_free_space: ""
 # Set to /usr/bin/weed to bypass the image entrypoint (the container then runs as root).
 volume_entrypoint: ""

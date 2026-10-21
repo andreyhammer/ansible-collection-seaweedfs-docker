@@ -131,6 +131,7 @@
     tasks_from: project_migrate
   vars:
     seaweed_guard_container: "{{ volume_container_name }}"
+    seaweed_stop_timeout: "{{ volume_stop_grace_seconds }}"
 
 - name: Update the node compose file
   ansible.builtin.include_role:

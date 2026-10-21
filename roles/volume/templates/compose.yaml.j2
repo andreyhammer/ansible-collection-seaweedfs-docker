@@ -6,6 +6,7 @@ services:
     container_name: {{ volume_container_name }}
     network_mode: host
     restart: unless-stopped
+    stop_grace_period: {{ volume_stop_grace_seconds }}s
 {% if volume_entrypoint | length > 0 %}
     entrypoint: {{ volume_entrypoint }}
 {% endif %}

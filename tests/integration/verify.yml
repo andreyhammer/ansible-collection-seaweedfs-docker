@@ -94,7 +94,7 @@
       ansible.builtin.command: >-
         docker inspect {{ inventory_hostname }}
         --format '{% raw %}{{json .Args}}|{{json .Config.Env}}|{{json .HostConfig.Binds}}|
-        {{.HostConfig.LogConfig.Type}}{% endraw %}'
+        {{.HostConfig.LogConfig.Type}}|{{.Config.StopTimeout}}{% endraw %}'
       register: verify_opts
       changed_when: false
 
@@ -112,6 +112,7 @@
             - "-index=leveldbLarge"
             - "-dataCenter=dc1"
             - "-preStopSeconds=5"
+            - "|35"  # stop_grace_period: -preStopSeconds + 30
             - "-minFreeSpace=1"
             - "-max=12"
             - "-readMode=proxy"

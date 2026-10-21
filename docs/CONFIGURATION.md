@@ -182,6 +182,7 @@ and `volume_disk_type`.
 | `volume_data_center` | `""` | `-dataCenter` |
 | `volume_pre_stop_seconds` | `""` | `-preStopSeconds` |
 | `volume_min_free_space` | `""` | `-minFreeSpace` |
+| `volume_stop_grace_seconds` | `volume_pre_stop_seconds` (10 if unset) + 30 | Compose `stop_grace_period`: how long Docker waits after SIGTERM before SIGKILL. The server sleeps `-preStopSeconds` before it closes its files, so this must be longer than that |
 | `volume_entrypoint` | `""` | e.g. `/usr/bin/weed` to bypass the image entrypoint (the container then runs as root) |
 | `volume_container_uid` / `_gid` | `1000` / `1000` | Owner of the data and index directories on the host, matching the image's `seaweed` user |
 | `volume_check_ownership` | `true` | Before starting, fail if a data or index dir holds files not owned by the container user (skipped when `volume_entrypoint` is set) |

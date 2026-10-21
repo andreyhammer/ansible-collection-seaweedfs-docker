@@ -42,3 +42,5 @@
 - Test: default replication `010` across racks (two copies in different racks), a real `filer.toml` (PostgreSQL), a
   `master.toml` and an `-options` file. Documentation corrected: `-options` takes `name=value` lines, while TOML configs
   are mounted into `/etc/seaweedfs/`; SeaweedFS silently skips a TOML file with a syntax error.
+- Volume containers get a `stop_grace_period` (`volume_stop_grace_seconds`, default `-preStopSeconds` + 30 s). Docker's
+  default of 10 s killed the server while it was still in its pre-stop sleep, before it closed its files and indexes.
