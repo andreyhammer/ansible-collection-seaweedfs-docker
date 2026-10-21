@@ -191,9 +191,10 @@ and `volume_disk_type`.
 | `volume_ec_register_timeout` | `300` | Seconds to wait for them; the run fails after that |
 | `volume_index_dir` | `""` | Index directory on the host, mounted at `/idx` and passed as `-dir.idx`. Empty = no `-dir.idx`, the index files stay next to the data. Set it to a directory on SSD, e.g. `"{{ volume_project_dir }}/idx"`. The role refuses to run when an `index` or `idx` directory with files exists in the container directory and is not the configured one |
 
-The data directories are mounted as `/data/disk1`, `/data/disk2`, ... and, when `volume_index_dir` is set, the index
-directory as `/idx` (`-dir.idx=/idx`; the container-side name only, it is not a cache). Without it every index file
-stays next to its data, which is the simplest layout and the default.
+The data directories are mounted as `/data/disk1`, `/data/disk2`, ... in the order of `volume_data_dirs`.
+
+When `volume_index_dir` is set, the index directory is mounted as `/idx` (`-dir.idx=/idx`; the container-side name only,
+it is not a cache). Without it every index file stays next to its data, which is the simplest layout and the default.
 
 When `volume_index_dir` is set, the index directory is **not disposable and must be backed up together with the data directories**. It holds the
 `.ldb` / `.idx` files of normal volumes and the `.ecx` / `.ecj` files of the EC volumes that arrived through

@@ -3,6 +3,66 @@
 Ansible collection that deploys, upgrades and scales a [SeaweedFS](https://github.com/seaweedfs/seaweedfs) cluster
 with Docker Compose. Stage 1 targets Debian.
 
+## What you get
+
+- Roles for masters, filers, admin, volume servers and EC workers, one container per inventory alias, with the
+  official `chrislusf/seaweedfs` image.
+- Safe changes: a dry run (`--check`), a guard against switching the image variant on existing data, a guard against
+  starting a volume server on a missing index directory, and a rolling update that stops at the first failure (masters
+  first, the raft leader last).
+- Checks after every start: the port answers, the server is registered in the masters, and a volume server's EC shards
+  come back after a restart.
+- Day-two tools: add a node, add or remove masters (in pairs), prepare blank data disks (XFS, mounted by label).
+- Every node also gets one `docker compose` project, so you can look at it and restart things by hand without Ansible
+  (see `docs/INSTALL.md`, "Manage by hand").
+
+## Why this approach
+
+SeaweedFS already does the hard parts of a storage cluster: replication, erasure coding and rebalancing between
+servers. What it does not do is decide **which disks each server owns** and **which address it announces**. That
+shapes the design:
+
+- **One container per disk group, one inventory alias per container.** The group size is yours to choose: one disk per
+  server gives the smallest failure domain (a crash, hang or restart of a volume server affects one disk), one server
+  for all disks gives the fewest processes. A node with eight HDDs can run, for example, four servers with two disks
+  each: half as many servers as one per disk, and a restart or upgrade of a server touches only two disks instead of
+  eight. Smaller servers also load their volumes and indexes faster after a restart, because each has fewer to scan
+  (not measured here). A failed disk is the clearest case: the server cannot keep running with it, so the disk is
+  removed from `-dir` and the server restarted, and the replacement is added with another restart. With one server for
+  eight disks all eight go offline for each of those restarts, with four servers only two. The cost is more containers
+  and ports (`8080 + NN`) than a single server per node, which the
+  collection derives for you, and the group layout is fixed in the inventory.
+- **Docker Compose and Ansible, not Docker Swarm or Kubernetes.** The containers need host networking, a fixed cluster
+  address and bind mounts of specific disks. That is the normal way to run Docker on a bare-metal host, and it is
+  awkward to express in Swarm. Kubernetes can do it (SeaweedFS has an official Helm chart and an operator), but it
+  needs a cluster to run on; if you already operate one, use those, not this collection. Here the machines are plain
+  servers managed with Ansible, and a failed container is restarted by Docker while data safety comes from
+  SeaweedFS's own replication and erasure coding, not from an orchestrator.
+- **Plain Compose files you can read.** Each container has a `compose.yaml` generated from one template per role, and
+  the roles never touch the kernel, the host's `/data` or software you did not ask for (Docker, keepalived and nginx are
+  yours). You can stop using the collection at any time and keep the files.
+- **Guards where mistakes are expensive.** The regular and `large_disk` builds are not interchangeable for existing
+  data, so the variant is a required choice; a changed or missing index directory would hide the EC indexes, so the
+  volume role refuses it; even numbers of masters are rejected before anything changes.
+
+What you give up: no automatic failover of a whole node (you restart it; the data stays available through
+replication or EC), no autoscaling, and rebalancing after adding servers is still `volume.balance` in `weed shell`.
+
+## Status and limits
+
+Stage 1. The roles pass `ansible-lint` (production profile) and an integration test on disposable nodes (see
+[Testing on disposable nodes](#testing-on-disposable-nodes)). On real hardware it has so far been used to add a
+node of four volume servers to an existing, hand-made cluster; it has not seen wide use, so expect rough
+edges and read the dry run (`--check`) before every change. Not done or not verified:
+
+- Debian only. Ubuntu may work, other distributions are untested.
+- `security.toml` contents (JWT, TLS), the `admin` and `worker` options files, and `ansible-core` 2.15 (the minimum)
+  are not tested.
+- Removing a master whose server is already dead is manual; there is no automatic rebalance after adding volumes.
+- The collection is not published on Ansible Galaxy yet (see Quick start).
+- With a separate index directory (`volume_index_dir`), SeaweedFS 4.48 keeps part of the `.ecx`/`.ecj` files in the data
+  directories as well (see `docs/CONFIGURATION.md`). Without it, everything stays together.
+
 ## Requirements
 
 - Ansible core >= 2.15 and the collections in `requirements.yml`:
