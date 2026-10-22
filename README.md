@@ -6,7 +6,8 @@
 [![ansible-core](https://img.shields.io/badge/ansible--core-%E2%89%A5%202.17-blue)](#requirements)
 
 Ansible collection that deploys, upgrades and scales a [SeaweedFS](https://github.com/seaweedfs/seaweedfs) cluster
-with Docker Compose. Tested on Debian 12.
+with Docker Compose: masters, filers, one volume server per disk group, and erasure coding (EC) workers, with
+rolling updates and disk preparation. Tested on Debian 12.
 
 ## What you get
 
