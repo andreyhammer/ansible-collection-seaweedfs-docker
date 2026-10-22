@@ -1,0 +1,90 @@
+---
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  COLLECTION_PATH: ansible_collections/andreyhammer/seaweedfs_docker
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.COLLECTION_PATH }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tools and the collection dependencies
+        run: |
+          pip install ansible-core ansible-lint yamllint
+          ansible-galaxy collection install -r "$COLLECTION_PATH/requirements.yml" -p "$GITHUB_WORKSPACE"
+      - name: yamllint
+        run: yamllint .
+        working-directory: ${{ env.COLLECTION_PATH }}
+      - name: ansible-lint (production profile)
+        run: ansible-lint
+        working-directory: ${{ env.COLLECTION_PATH }}
+        env:
+          ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}
+      - name: shellcheck
+        run: git ls-files '*.sh' | xargs shellcheck -S warning
+        working-directory: ${{ env.COLLECTION_PATH }}
+
+  sanity:
+    name: ansible-test sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.COLLECTION_PATH }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ansible-core
+      - name: Sanity tests
+        run: ansible-test sanity --python 3.12
+        working-directory: ${{ env.COLLECTION_PATH }}
+
+  syntax:
+    name: Syntax (ansible-core ${{ matrix.core }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {core: "2.17", python: "3.12", spec: "==2.17.*"}
+          - {core: "2.18", python: "3.12", spec: "==2.18.*"}
+          - {core: "latest", python: "3.12", spec: ""}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.COLLECTION_PATH }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install ansible-core and the collection dependencies
+        run: |
+          pip install "ansible-core${{ matrix.spec }}"
+          ansible-galaxy collection install -r "$COLLECTION_PATH/requirements.yml" -p "$GITHUB_WORKSPACE"
+      - name: Syntax-check every playbook
+        run: |
+          for playbook in playbooks/*.yml; do
+            ansible-playbook --syntax-check -i tests/integration/inventory "$playbook"
+          done
+        working-directory: ${{ env.COLLECTION_PATH }}
+        env:
+          ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}

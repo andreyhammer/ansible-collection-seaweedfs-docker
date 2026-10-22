@@ -16,7 +16,7 @@ affect a cluster that holds data. Please keep that in mind and test accordingly.
 
 ## Development setup
 
-You need Docker, `ansible-core` 2.15 or newer, `ansible-lint` and `yamllint`.
+You need Docker, `ansible-core` 2.17 or newer, `ansible-lint` and `yamllint`.
 
 ```bash
 ansible-galaxy collection install -r requirements.yml
@@ -36,6 +36,13 @@ tests/integration/run.sh up|deploy|verify|idempotence|dryrun|guard|update|down  
 
 The nodes are **privileged** containers, so use a development machine: the loop devices created by the disks test
 and any kernel setting that is not namespaced are shared with your host. The roles never change kernel parameters.
+
+## Continuous integration
+
+Pull requests run `yamllint`, `ansible-lint` (production profile), `shellcheck`, `ansible-test sanity` and a syntax check
+of every playbook on `ansible-core` 2.17, 2.18 and the latest release (`.github/workflows/ci.yml`). The integration test
+(`.github/workflows/integration.yml`) is slow and starts privileged containers, so it runs weekly and on request
+(Actions, "Integration", "Run workflow"), not on every pull request. Run it locally before you open a pull request.
 
 Add a check to `tests/integration/` for every behavior you change or add, and say in the pull request what you ran.
 

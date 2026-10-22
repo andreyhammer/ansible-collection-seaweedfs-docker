@@ -522,7 +522,7 @@ disks() {
             ln -sfn "$dev" /dev/disk/by-id/test-disk$i
         done
         mkfs.ext4 -q -L precious /dev/disk/by-id/test-disk3'
-    local vars=(-e target_node=$n -i "$n," -e '{"disks_filesystems": [
+    local vars=(-e "target_node=$n" -i "$n," -e '{"disks_filesystems": [
         {"device": "/dev/disk/by-id/test-disk1", "label": "tdisk1", "mount": "/mnt/tdisk1"},
         {"device": "/dev/disk/by-id/test-disk2", "label": "tdisk2", "mount": "/mnt/tdisk2"}]}')
     if out=$(ansible-playbook "$COLLECTION.prepare_disks" "${vars[@]}" 2>&1); then

@@ -58,8 +58,8 @@ edges and read the dry run (`--check`) before every change. Not done or not veri
 - Tested on Debian 12 only. The roles use nothing distribution-specific except `prepare_disks`, which installs
   `xfsprogs` with `apt` (set `disks_install_packages: false` and install it yourself on other systems), so other
   distributions with Docker should work, but they are untested.
-- `security.toml` contents (JWT, TLS), the `admin` and `worker` options files, and `ansible-core` 2.15 (the minimum)
-  are not tested.
+- `security.toml` contents (JWT, TLS) and the `admin` and `worker` options files are not tested. CI checks syntax on
+  `ansible-core` 2.17 (the minimum), 2.18 and the latest release; the playbooks have only been run on the latest.
 - Removing a master whose server is already dead is manual; there is no automatic rebalance after adding volumes.
 - The collection is not published on Ansible Galaxy yet (see Quick start).
 - With a separate index directory (`volume_index_dir`), SeaweedFS 4.48 keeps part of the `.ecx`/`.ecj` files in the data
@@ -67,7 +67,7 @@ edges and read the dry run (`--check`) before every change. Not done or not veri
 
 ## Requirements
 
-- Ansible core >= 2.15 and the collections in `requirements.yml`:
+- Ansible core >= 2.17 (the minimum of `community.docker` 5) and the collections in `requirements.yml`:
   `ansible-galaxy collection install -r requirements.yml`
 - Docker Engine and the `docker compose` plugin installed on every node **before** running playbooks.
   Pre-flight checks fail with an explicit error if they are missing.

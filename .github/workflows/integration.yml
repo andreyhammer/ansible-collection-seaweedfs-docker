@@ -1,0 +1,36 @@
+---
+# The integration test builds privileged Docker-in-Docker nodes and runs the whole flow against them
+# (about 25 minutes). It is not part of the pull request checks: start it by hand or wait for the weekly run.
+name: Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      large_disk:
+        description: Test the large_disk image build instead of the regular one
+        type: boolean
+        default: false
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    name: Integration test
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ansible-core
+      - name: Run the integration test
+        run: tests/integration/run.sh test
+        env:
+          SEAWEED_TEST_LARGE_DISK: ${{ inputs.large_disk && '1' || '0' }}
+      - name: Show the test log on failure
+        if: failure()
+        run: ls -la tests/integration/.work || true

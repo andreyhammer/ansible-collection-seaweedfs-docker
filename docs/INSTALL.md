@@ -4,7 +4,7 @@
 
 On the machine that runs Ansible (the controller):
 
-- `ansible-core` 2.15 or newer.
+- `ansible-core` 2.17 or newer (the minimum of the `community.docker` 5 dependency).
 - The collections from `requirements.yml` (`community.docker` >= 5.0.0, `ansible.posix` >= 1.5.0).
 - SSH access to every node with a user that can use `docker` (root in the examples).
 
