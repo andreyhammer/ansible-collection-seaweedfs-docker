@@ -13,7 +13,10 @@ tags:
   - docker
   - storage
   - infrastructure
-repository: https://github.com/andreyhammer/seaweedfs-docker
+repository: https://github.com/andreyhammer/ansible-collection-seaweedfs-docker
+homepage: https://github.com/andreyhammer/ansible-collection-seaweedfs-docker
+issues: https://github.com/andreyhammer/ansible-collection-seaweedfs-docker/issues
+documentation: https://github.com/andreyhammer/ansible-collection-seaweedfs-docker/tree/main/docs
 dependencies:
   community.docker: ">=5.0.0"
   ansible.posix: ">=1.5.0"
