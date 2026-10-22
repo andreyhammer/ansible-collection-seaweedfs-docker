@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-10-22)
 
 - Initial implementation: roles `common`, `master`, `filer`, `admin`, `volume`, `worker`.
 - Playbooks `site`, `rolling_update`, `add_node`.
@@ -49,3 +49,6 @@
   `/cache`; `/idx` is the name the official Helm chart uses). The volume role refuses to run when an `index` or `idx`
   directory with files exists in the container directory and is not the configured one, so an empty or missing index is
   never started by accident.
+- CI: lint, syntax and sanity checks on every push and pull request; the integration test runs on pushes that change
+  the code, weekly and on demand. Status badges in the README.
+- The minimum `ansible-core` is 2.17 (the minimum of `community.docker` 5), not 2.15 as stated earlier.
