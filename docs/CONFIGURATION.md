@@ -163,7 +163,7 @@ environment variables (`syntax error at or near "%!"`), so use a recent version.
 | `node_num` | required per alias | |
 | `admin_port` | `23646` | |
 | `admin_password` | env `SEAWEED_ADMIN_PASSWORD` | When set, the server listens on all interfaces |
-| `admin_bind_ip` | `""` | Explicit listen address |
+| `admin_bind_ip` | `""` | Explicit listen address. With a password and no address, 4.48 listens on every interface, but 4.47 only on `127.0.0.1` (seen in a test), so the role's wait for the port times out: set this for older versions |
 | `admin_allow_insecure_bind` | `false` | Binds the node IP **without authentication**; isolated networks only |
 
 Without a password the admin server listens on loopback only, so workers on other nodes cannot reach it. The role

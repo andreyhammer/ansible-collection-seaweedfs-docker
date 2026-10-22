@@ -24,7 +24,7 @@ Keepalived, nginx and certificates are outside the collection.
 | System | What was checked |
 |---|---|
 | Debian 12 | The whole integration test (`tests/integration/run.sh test`) and production use. |
-| Rocky Linux 9.8, SELinux enforcing, Docker CE 29.9, Compose 5.6, ansible-core 2.21.5 | One virtual machine, by hand: `prepare_disks` on virtual disks, `add_node` for a master and two volume servers, a write and read through the cluster, a second run with no changes. Not run: filer, admin, workers, `rolling_update`. |
+| Rocky Linux 9.8, SELinux enforcing, Docker CE 29.9, Compose 5.6, ansible-core 2.21.5 | Three virtual machines, by hand, with SeaweedFS 4.48: `prepare_disks` on virtual disks; `site` (3 masters, filer with S3 enabled, admin, 2 workers, 6 volume servers in 3 racks, replication `010`), `--check` on empty nodes, a second run with no changes; data written through the filer and read back; one volume erasure coded (14 shards); `rolling_update` of every group (4.48 to 4.47 and back, EC shards came back after each volume restart); the variant guard; a node reboot (disks, containers and cluster came back by themselves); adding two masters (3 to 5) and removing them again, with the other services refreshed. Not run: PostgreSQL filer, S3 requests with credentials, an erasure coding task actually run by a worker, wrong-password and ownership checks. |
 | Ubuntu, other Red Hat family systems | Not tested. Nothing in the roles is specific to Debian. |
 
 Notes for the Red Hat family:

@@ -61,8 +61,9 @@ Stage 1. The roles pass `ansible-lint` (production profile) and an integration t
 node of four volume servers to an existing, hand-made cluster; it has not seen wide use, so expect rough
 edges and read the dry run (`--check`) before every change. Not done or not verified:
 
-- Tested on Debian 12 (the full integration test) and Rocky Linux 9.8 with SELinux enforcing (a manual run on one virtual
-  machine: `prepare_disks`, a master and two volume servers, a write through the cluster, a second run without changes).
+- Tested on Debian 12 (the full integration test) and Rocky Linux 9.8 with SELinux enforcing (a manual run on three
+  virtual machines: deployment of every component, rolling updates, a reboot, adding and removing masters; the list is
+  in `docs/INSTALL.md`).
   The roles use nothing distribution-specific, so other distributions with Docker (Ubuntu, other Red Hat family
   systems) should work, but they are untested. Rocky 9 needs a Python setting with ansible-core 2.21, see
   `docs/INSTALL.md`.
