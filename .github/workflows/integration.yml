@@ -1,9 +1,19 @@
 ---
 # The integration test builds privileged Docker-in-Docker nodes and runs the whole flow against them
-# (about 25 minutes). It is not part of the pull request checks: start it by hand or wait for the weekly run.
+# (about 25 minutes). It runs on pushes to main that change the roles, playbooks or tests, every week (the test uses the
+# latest SeaweedFS image, which changes without any commit here) and on request. It is not part of the pull request
+# checks: start it by hand from the Actions tab.
 name: Integration
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "roles/**"
+      - "playbooks/**"
+      - "tests/**"
+      - "meta/**"
+      - "requirements.yml"
   workflow_dispatch:
     inputs:
       large_disk:

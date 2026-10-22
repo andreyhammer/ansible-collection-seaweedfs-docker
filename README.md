@@ -1,5 +1,10 @@
 # andreyhammer.seaweedfs_docker
 
+[![CI](https://github.com/andreyhammer/ansible-collection-seaweedfs-docker/actions/workflows/ci.yml/badge.svg)](https://github.com/andreyhammer/ansible-collection-seaweedfs-docker/actions/workflows/ci.yml)
+[![Integration](https://github.com/andreyhammer/ansible-collection-seaweedfs-docker/actions/workflows/integration.yml/badge.svg)](https://github.com/andreyhammer/ansible-collection-seaweedfs-docker/actions/workflows/integration.yml)
+[![License](https://img.shields.io/github/license/andreyhammer/ansible-collection-seaweedfs-docker)](LICENSE)
+[![ansible-core](https://img.shields.io/badge/ansible--core-%E2%89%A5%202.17-blue)](#requirements)
+
 Ansible collection that deploys, upgrades and scales a [SeaweedFS](https://github.com/seaweedfs/seaweedfs) cluster
 with Docker Compose. Tested on Debian 12.
 

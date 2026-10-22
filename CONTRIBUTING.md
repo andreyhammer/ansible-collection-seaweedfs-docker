@@ -41,8 +41,9 @@ and any kernel setting that is not namespaced are shared with your host. The rol
 
 Pull requests run `yamllint`, `ansible-lint` (production profile), `shellcheck`, `ansible-test sanity` and a syntax check
 of every playbook on `ansible-core` 2.17, 2.18 and the latest release (`.github/workflows/ci.yml`). The integration test
-(`.github/workflows/integration.yml`) is slow and starts privileged containers, so it runs weekly and on request
-(Actions, "Integration", "Run workflow"), not on every pull request. Run it locally before you open a pull request.
+(`.github/workflows/integration.yml`) is slow and starts privileged containers, so it runs on pushes to `main` that change the roles, playbooks
+or tests, weekly, and on request (Actions, "Integration", "Run workflow"), not on every pull request. Run it locally
+before you open a pull request.
 
 Add a check to `tests/integration/` for every behavior you change or add, and say in the pull request what you ran.
 
