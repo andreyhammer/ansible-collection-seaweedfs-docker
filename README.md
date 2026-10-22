@@ -62,8 +62,8 @@ node of four volume servers to an existing, hand-made cluster; it has not seen w
 edges and read the dry run (`--check`) before every change. Not done or not verified:
 
 - Tested on Debian 12 (the full integration test), Rocky Linux 9.8 with SELinux enforcing and Ubuntu 24.04 (manual runs
-  on three virtual machines each: deployment of every component, rolling updates, a reboot; on Rocky also adding and
-  removing masters; the lists are in `docs/INSTALL.md`). The roles use nothing distribution-specific, so other
+  on three virtual machines each: deployment of every component, rolling updates, adding and removing
+  masters, a reboot; the lists are in `docs/INSTALL.md`). The roles use nothing distribution-specific, so other
   distributions with Docker should work, but they are untested.
 - `security.toml` contents (JWT, TLS) and the `admin` and `worker` options files are not tested. CI checks syntax on
   `ansible-core` 2.17 (the minimum), 2.18 and the latest release; the playbooks have only been run on the latest.
