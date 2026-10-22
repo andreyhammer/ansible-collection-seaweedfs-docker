@@ -67,7 +67,6 @@ edges and read the dry run (`--check`) before every change. Not done or not veri
 - `security.toml` contents (JWT, TLS) and the `admin` and `worker` options files are not tested. CI checks syntax on
   `ansible-core` 2.17 (the minimum), 2.18 and the latest release; the playbooks have only been run on the latest.
 - Removing a master whose server is already dead is manual; there is no automatic rebalance after adding volumes.
-- The collection is not published on Ansible Galaxy yet (see Quick start).
 - With a separate index directory (`volume_index_dir`), SeaweedFS 4.48 keeps part of the `.ecx`/`.ecj` files in the data
   directories as well (see `docs/CONFIGURATION.md`). Without it, everything stays together.
 
@@ -90,8 +89,7 @@ Maintained on a best-effort basis; issues and pull requests are welcome.
 ## Quick start
 
 ```bash
-# Not on Galaxy yet: build and install the archive (see docs/INSTALL.md)
-ansible-galaxy collection build && ansible-galaxy collection install andreyhammer-seaweedfs_docker-*.tar.gz
+ansible-galaxy collection install andreyhammer.seaweedfs_docker   # other ways: docs/INSTALL.md
 # Adapt examples/inventory/ from this repository, then export secrets:
 export SEAWEED_FILER_POSTGRES_PASSWORD=...
 ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.site --check

@@ -21,12 +21,17 @@ Keepalived, nginx and certificates are outside the collection.
 
 ## Install the collection
 
-The collection is not published on Ansible Galaxy yet, so `ansible-galaxy collection install
-andreyhammer.seaweedfs_docker` does not work. Install the archive attached to a GitHub release:
+From Ansible Galaxy (this also installs the dependencies from `galaxy.yml`):
+
+```bash
+ansible-galaxy collection install andreyhammer.seaweedfs_docker
+```
+
+Or install the archive attached to a GitHub release (replace the version as needed):
 
 ```bash
 ansible-galaxy collection install \
-  https://github.com/andreyhammer/ansible-collection-seaweedfs-docker/releases/download/v0.1.0/andreyhammer-seaweedfs_docker-0.1.0.tar.gz
+  https://github.com/andreyhammer/ansible-collection-seaweedfs-docker/releases/download/v0.1.1/andreyhammer-seaweedfs_docker-0.1.1.tar.gz
 ansible-galaxy collection install -r requirements.yml   # dependencies (community.docker, ansible.posix)
 ```
 

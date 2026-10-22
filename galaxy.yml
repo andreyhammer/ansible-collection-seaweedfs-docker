@@ -1,7 +1,7 @@
 ---
 namespace: andreyhammer
 name: seaweedfs_docker
-version: 0.1.0
+version: 0.1.1
 readme: README.md
 authors:
   - Andrey Andronov

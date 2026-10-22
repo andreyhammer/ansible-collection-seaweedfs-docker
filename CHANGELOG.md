@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 (2026-10-22)
+
+- Documentation only: the README introduction mentions volume servers and erasure coding, states that the project is
+  maintained on a best-effort basis, and `docs/INSTALL.md` describes installing the release archive.
+- First version published on Ansible Galaxy.
+
 ## 0.1.0 (2026-10-22)
 
 - Initial implementation: roles `common`, `master`, `filer`, `admin`, `volume`, `worker`.
