@@ -2,7 +2,7 @@
 # Disks to prepare on this node. One entry per disk:
 #   device: stable name such as /dev/disk/by-id/ata-EXAMPLE_MODEL_SERIAL0001 (never /dev/sdX, see below)
 #   label:  filesystem label, 1-12 characters (XFS limit), also used in /etc/fstab (LABEL=<label>)
-#   mount:  absolute mount point, e.g. /mnt/hdd1
+#   mount:  absolute mount point, e.g. /mnt/disk1
 disks_filesystems: []
 
 disks_mount_options: defaults,noatime

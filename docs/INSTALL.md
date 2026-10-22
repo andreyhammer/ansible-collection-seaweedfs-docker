@@ -92,8 +92,8 @@ host variable, not on the container aliases), by their stable names:
 ```yaml
 seaweed01-05.in.example.com:
   disks_filesystems:
-    - {device: /dev/disk/by-id/ata-EXAMPLE_MODEL_SERIAL0001, label: hdd1, mount: /mnt/hdd1}
-    - {device: /dev/disk/by-id/ata-EXAMPLE_MODEL_SERIAL0002, label: hdd2, mount: /mnt/hdd2}
+    - {device: /dev/disk/by-id/ata-EXAMPLE_MODEL_SERIAL0001, label: disk1, mount: /mnt/disk1}
+    - {device: /dev/disk/by-id/ata-EXAMPLE_MODEL_SERIAL0002, label: disk2, mount: /mnt/disk2}
 ```
 
 Find the names with `ls -l /dev/disk/by-id/` and `lsblk -o NAME,SIZE,SERIAL,MODEL,FSTYPE,MOUNTPOINT`; `/dev/sdX`
