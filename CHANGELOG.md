@@ -4,6 +4,7 @@
 
 - Documentation only: the README introduction mentions volume servers and erasure coding, states that the project is
   maintained on a best-effort basis, and `docs/INSTALL.md` describes installing the release archive.
+- Every role has a `README.md` (Ansible Galaxy refuses to import a collection whose roles have none).
 - First version published on Ansible Galaxy.
 
 ## 0.1.0 (2026-10-22)
