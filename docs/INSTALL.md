@@ -8,7 +8,7 @@ On the machine that runs Ansible (the controller):
 - The collections from `requirements.yml` (`community.docker` >= 5.0.0, `ansible.posix` >= 1.5.0).
 - SSH access to every node with a user that can use `docker` (root in the examples).
 
-On every SeaweedFS node (Debian in Stage 1):
+On every SeaweedFS node (tested on Debian 12):
 
 - Docker Engine and the `docker compose` plugin, **installed beforehand**. The collection never installs Docker.
   The `common` role checks for both and stops with an explicit error if they are missing.
@@ -108,7 +108,8 @@ Safeguards: a disk that already has any signature (a filesystem, a RAID member, 
 is mounted elsewhere stops the whole run before anything is changed (wipe it yourself if that is intended); `mkfs.xfs`
 is never forced; the filesystem label (at most 12 characters) is what `/etc/fstab` uses, so the mapping survives
 device renaming. Re-running is safe: disks that are already formatted with the right label are only mounted.
-Debian only; the package `xfsprogs` is installed unless `disks_install_packages: false`.
+The package `xfsprogs` is installed with `apt` unless `disks_install_packages: false`; on systems without `apt`, set
+that variable and install it yourself.
 
 ## Manage by hand
 
@@ -137,7 +138,7 @@ restarted once. Dry runs (`--check`) do not report this move.
 
 ## Add a node (new hardware)
 
-1. Prepare the machine: Debian, SSH access, Docker Engine and the `docker compose` plugin, data disks mounted at the
+1. Prepare the machine: SSH access, Docker Engine and the `docker compose` plugin, data disks mounted at the
    paths you will list in `volume_data_dirs` (blank disks: see "Prepare data disks" above).
 2. Add **every alias that will run on it** to the inventory (filer, volume servers, workers, ...), each with the new
    node's IP in `ansible_host` and the next node number (for example `volume05-dg01`, `worker05-ec01`, `filer05`).

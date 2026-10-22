@@ -1,4 +1,4 @@
-# Test "node": a Debian host (the platform this collection targets) with sshd, python, findmnt and a
+# Test "node": a Debian host (the platform the tests run on) with sshd, python, findmnt and a
 # Docker-in-Docker daemon with the compose plugin, plus mounted data disks (see entrypoint.sh).
 FROM docker:dind AS dind-src
 

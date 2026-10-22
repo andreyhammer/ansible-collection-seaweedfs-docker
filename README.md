@@ -1,7 +1,7 @@
 # andreyhammer.seaweedfs_docker
 
 Ansible collection that deploys, upgrades and scales a [SeaweedFS](https://github.com/seaweedfs/seaweedfs) cluster
-with Docker Compose. Stage 1 targets Debian.
+with Docker Compose. Tested on Debian 12.
 
 ## What you get
 
@@ -55,7 +55,9 @@ Stage 1. The roles pass `ansible-lint` (production profile) and an integration t
 node of four volume servers to an existing, hand-made cluster; it has not seen wide use, so expect rough
 edges and read the dry run (`--check`) before every change. Not done or not verified:
 
-- Debian only. Ubuntu may work, other distributions are untested.
+- Tested on Debian 12 only. The roles use nothing distribution-specific except `prepare_disks`, which installs
+  `xfsprogs` with `apt` (set `disks_install_packages: false` and install it yourself on other systems), so other
+  distributions with Docker should work, but they are untested.
 - `security.toml` contents (JWT, TLS), the `admin` and `worker` options files, and `ansible-core` 2.15 (the minimum)
   are not tested.
 - Removing a master whose server is already dead is manual; there is no automatic rebalance after adding volumes.
