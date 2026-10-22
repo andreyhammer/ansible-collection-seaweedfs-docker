@@ -25,17 +25,18 @@ Keepalived, nginx and certificates are outside the collection.
 |---|---|
 | Debian 12 | The whole integration test (`tests/integration/run.sh test`) and production use. |
 | Rocky Linux 9.8, SELinux enforcing, Docker CE 29.9, Compose 5.6, ansible-core 2.21.5 | Three virtual machines, by hand, with SeaweedFS 4.48: `prepare_disks` on virtual disks; `site` (3 masters, filer with S3 enabled, admin, 2 workers, 6 volume servers in 3 racks, replication `010`), `--check` on empty nodes, a second run with no changes; data written through the filer and read back; one volume erasure coded (14 shards); `rolling_update` of every group (4.48 to 4.47 and back, EC shards came back after each volume restart); the variant guard; a node reboot (disks, containers and cluster came back by themselves); adding two masters (3 to 5) and removing them again, with the other services refreshed. Not run: PostgreSQL filer, S3 requests with credentials, an erasure coding task actually run by a worker, wrong-password and ownership checks. |
-| Ubuntu, other Red Hat family systems | Not tested. Nothing in the roles is specific to Debian. |
+| Ubuntu 24.04.5, Docker CE, ansible-core 2.21.5 | Three virtual machines, by hand, with SeaweedFS 4.48: `prepare_disks` (the second run changes nothing), `site --check`, `site` with the same components and layout as on Rocky, a second run with no changes, data written through the filer and read back, one volume erasure coded (14 shards), `rolling_update` of the master and volume groups (4.48 to 4.47, EC shards came back), the variant guard, a node reboot. No Python setting was needed. Not run: adding and removing masters, rolling updates of the filer, admin and worker groups, and the items listed for Rocky. The image already contained `xfsprogs`, so the package was not installed during the run. |
+| Other Debian/Ubuntu releases, other Red Hat family systems | Not tested. Nothing in the roles is specific to one distribution. |
 
 Notes for the Red Hat family:
 
-- **Python.** These systems ship Python 3.9, which ansible-core 2.21 does not pick by itself (the first task fails
-  with `The module interpreter 'auto_legacy' was not found`). Set `ansible_python_interpreter: /usr/bin/python3` in the
-  inventory (this was enough), or install a newer Python on the nodes.
 - **SELinux.** Containers wrote to the data disks with SELinux enforcing and no denials, because Docker CE does not
   confine containers with SELinux unless `"selinux-enabled": true` is set in `/etc/docker/daemon.json`. With that
   setting the data and compose directories would need an SELinux label (`:z`); this is **not tested** and the
   collection does not do it for you.
+- **Ansible configuration.** If the first task fails with `The module interpreter 'auto_legacy' was not found`, your
+  `ansible.cfg` sets `interpreter_python = auto_legacy`, which ansible-core 2.21.5 treats as a path. Use `auto` (the
+  default) or remove the line; this is not specific to any distribution.
 - **Firewall.** The collection does not open ports (see the list above); do it with `firewalld` yourself.
 
 ## Install the collection

@@ -5,8 +5,10 @@
 - `disks`: `xfsprogs` is installed with `ansible.builtin.package` (apt, dnf, ...) instead of `apt`, after detecting the
   package manager, so `prepare_disks` works on the Red Hat family too.
 - Documented the systems checked so far (Debian 12 and Rocky Linux 9.8) and what the Red Hat family needs
-  (Python interpreter with ansible-core 2.21; SELinux). Rocky Linux 9.8 was run on three virtual machines through
+  (SELinux). Rocky Linux 9.8 was run on three virtual machines through
   deployment, rolling updates, a reboot and the 3 -> 5 -> 3 masters procedure; no change to the roles was needed.
+- Ubuntu 24.04 was run the same way on three virtual machines (deployment, rolling updates of the master and volume
+  groups, a reboot); no change to the roles was needed.
 - Documented that the admin server of SeaweedFS 4.47 listens on `127.0.0.1` only unless `admin_bind_ip` is set.
 
 ## 0.1.1 (2026-10-22)
