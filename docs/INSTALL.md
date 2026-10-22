@@ -8,7 +8,7 @@ On the machine that runs Ansible (the controller):
 - The collections from `requirements.yml` (`community.docker` >= 5.0.0, `ansible.posix` >= 1.5.0).
 - SSH access to every node with a user that can use `docker` (root in the examples).
 
-On every SeaweedFS node (tested on Debian 12):
+On every SeaweedFS node (tested on Debian 12 and Rocky Linux 9.8, see "Supported systems" below):
 
 - Docker Engine and the `docker compose` plugin, **installed beforehand**. The collection never installs Docker.
   The `common` role checks for both and stops with an explicit error if they are missing.
@@ -18,6 +18,25 @@ On every SeaweedFS node (tested on Debian 12):
   volume servers 8081-80NN, plus the gRPC ports SeaweedFS derives from them).
 
 Keepalived, nginx and certificates are outside the collection.
+
+### Supported systems
+
+| System | What was checked |
+|---|---|
+| Debian 12 | The whole integration test (`tests/integration/run.sh test`) and production use. |
+| Rocky Linux 9.8, SELinux enforcing, Docker CE 29.9, Compose 5.6, ansible-core 2.21.5 | One virtual machine, by hand: `prepare_disks` on virtual disks, `add_node` for a master and two volume servers, a write and read through the cluster, a second run with no changes. Not run: filer, admin, workers, `rolling_update`. |
+| Ubuntu, other Red Hat family systems | Not tested. Nothing in the roles is specific to Debian. |
+
+Notes for the Red Hat family:
+
+- **Python.** These systems ship Python 3.9, which ansible-core 2.21 does not pick by itself (the first task fails
+  with `The module interpreter 'auto_legacy' was not found`). Set `ansible_python_interpreter: /usr/bin/python3` in the
+  inventory (this was enough), or install a newer Python on the nodes.
+- **SELinux.** Containers wrote to the data disks with SELinux enforcing and no denials, because Docker CE does not
+  confine containers with SELinux unless `"selinux-enabled": true` is set in `/etc/docker/daemon.json`. With that
+  setting the data and compose directories would need an SELinux label (`:z`); this is **not tested** and the
+  collection does not do it for you.
+- **Firewall.** The collection does not open ports (see the list above); do it with `firewalld` yourself.
 
 ## Install the collection
 
@@ -121,8 +140,8 @@ Safeguards: a disk that already has any signature (a filesystem, a RAID member, 
 is mounted elsewhere stops the whole run before anything is changed (wipe it yourself if that is intended); `mkfs.xfs`
 is never forced; the filesystem label (at most 12 characters) is what `/etc/fstab` uses, so the mapping survives
 device renaming. Re-running is safe: disks that are already formatted with the right label are only mounted.
-The package `xfsprogs` is installed with `apt` unless `disks_install_packages: false`; on systems without `apt`, set
-that variable and install it yourself.
+The package `xfsprogs` is installed with the system's package manager (`apt`, `dnf`, ...) unless
+`disks_install_packages: false`; set that variable and install it yourself when the package has another name.
 
 ## Manage by hand
 

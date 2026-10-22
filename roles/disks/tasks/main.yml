@@ -17,11 +17,17 @@
   loop_control:
     label: "{{ item.device | default('?') }}"
 
+# xfsprogs is the package name on Debian, Ubuntu and the Red Hat family alike; the generic module picks apt or dnf
+# from the package manager fact, which the playbook does not gather (gather_facts is off).
+- name: Detect the package manager
+  ansible.builtin.setup:
+    gather_subset: ["!all", "!min", pkg_mgr]
+  when: disks_install_packages | bool
+
 - name: Install the XFS tools
-  ansible.builtin.apt:
+  ansible.builtin.package:
     name: xfsprogs
     state: present
-    cache_valid_time: 3600
   when: disks_install_packages | bool
 
 - name: Inspect the devices

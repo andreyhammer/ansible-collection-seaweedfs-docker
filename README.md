@@ -7,7 +7,7 @@
 
 Ansible collection that deploys, upgrades and scales a [SeaweedFS](https://github.com/seaweedfs/seaweedfs) cluster
 with Docker Compose: masters, filers, one volume server per disk group, and erasure coding (EC) workers, with
-rolling updates and disk preparation. Tested on Debian 12.
+rolling updates and disk preparation. Tested on Debian 12 and Rocky Linux 9.
 
 ## What you get
 
@@ -61,9 +61,11 @@ Stage 1. The roles pass `ansible-lint` (production profile) and an integration t
 node of four volume servers to an existing, hand-made cluster; it has not seen wide use, so expect rough
 edges and read the dry run (`--check`) before every change. Not done or not verified:
 
-- Tested on Debian 12 only. The roles use nothing distribution-specific except `prepare_disks`, which installs
-  `xfsprogs` with `apt` (set `disks_install_packages: false` and install it yourself on other systems), so other
-  distributions with Docker should work, but they are untested.
+- Tested on Debian 12 (the full integration test) and Rocky Linux 9.8 with SELinux enforcing (a manual run on one virtual
+  machine: `prepare_disks`, a master and two volume servers, a write through the cluster, a second run without changes).
+  The roles use nothing distribution-specific, so other distributions with Docker (Ubuntu, other Red Hat family
+  systems) should work, but they are untested. Rocky 9 needs a Python setting with ansible-core 2.21, see
+  `docs/INSTALL.md`.
 - `security.toml` contents (JWT, TLS) and the `admin` and `worker` options files are not tested. CI checks syntax on
   `ansible-core` 2.17 (the minimum), 2.18 and the latest release; the playbooks have only been run on the latest.
 - Removing a master whose server is already dead is manual; there is no automatic rebalance after adding volumes.

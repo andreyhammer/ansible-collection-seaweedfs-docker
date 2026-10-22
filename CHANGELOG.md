@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `disks`: `xfsprogs` is installed with `ansible.builtin.package` (apt, dnf, ...) instead of `apt`, after detecting the
+  package manager, so `prepare_disks` works on the Red Hat family too.
+- Documented the systems checked so far (Debian 12 and Rocky Linux 9.8) and what the Red Hat family needs
+  (Python interpreter with ansible-core 2.21; SELinux).
+
 ## 0.1.1 (2026-10-22)
 
 - Documentation only: the README introduction mentions volume servers and erasure coding, states that the project is

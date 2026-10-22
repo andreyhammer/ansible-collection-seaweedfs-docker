@@ -115,7 +115,7 @@ filer_s3_idle_timeout: 3600
 | `disks_filesystems` | `[]` | List of `{device, label, mount}` on the node; `device` must be a `/dev/disk/by-*` name, `label` 1-12 characters |
 | `disks_format` | `false` | Must be `true` to format; without it the run lists the empty disks and fails |
 | `disks_mount_options` | `defaults,noatime` | Mount options in `/etc/fstab` |
-| `disks_install_packages` | `true` | Install `xfsprogs` |
+| `disks_install_packages` | `true` | Install `xfsprogs` with the system's package manager |
 | `disks_allow_unstable_names` | `false` | Allow `/dev/sdX` (throwaway tests only) |
 
 ## Common

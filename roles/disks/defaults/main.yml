@@ -6,7 +6,8 @@
 disks_filesystems: []
 
 disks_mount_options: defaults,noatime
-# Install the XFS tools (package xfsprogs, with apt) when they are missing. Set to false on systems without apt.
+# Install the XFS tools (package xfsprogs, with the system's package manager) when they are missing. Set to false
+# when the package has another name or the node has no package manager access.
 disks_install_packages: true
 # Formatting destroys data, so it is off by default: the role fails and lists the empty disks it would format.
 # Review the list (and a run with --check), then pass -e disks_format=true.
