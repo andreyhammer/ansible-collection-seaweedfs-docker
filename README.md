@@ -71,6 +71,8 @@ edges and read the dry run (`--check`) before every change. Not done or not veri
 - With a separate index directory (`volume_index_dir`), SeaweedFS 4.48 keeps part of the `.ecx`/`.ecj` files in the data
   directories as well (see `docs/CONFIGURATION.md`). Without it, everything stays together.
 
+Maintained on a best-effort basis; issues and pull requests are welcome.
+
 ## Requirements
 
 - Ansible core >= 2.17 (the minimum of `community.docker` 5) and the collections in `requirements.yml`:
