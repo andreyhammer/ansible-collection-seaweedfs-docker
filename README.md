@@ -96,6 +96,56 @@ ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.site
 | Prepare data disks (XFS, mount by label) | `ansible-playbook andreyhammer.seaweedfs_docker.prepare_disks -e target_node=<host>` (formats only with `-e disks_format=true`; see `docs/INSTALL.md`) |
 | Add a node | `ansible-playbook andreyhammer.seaweedfs_docker.add_node -e target_node=node05` (a group with all aliases of the new node; see `docs/INSTALL.md`) |
 
+### Minimal example
+
+Three nodes (`10.0.0.11-13`), each with a master and two volume servers of two disks each. The disks are already
+formatted and mounted at `/mnt/disk1` to `/mnt/disk4` on every node (see `prepare_disks` above for blank ones).
+
+`inventory/hosts.yml`:
+
+```yaml
+all:
+  children:
+    seaweed:
+      children:
+        master:
+          hosts:
+            master01: {ansible_host: 10.0.0.11, node_num: 1}
+            master02: {ansible_host: 10.0.0.12, node_num: 2}
+            master03: {ansible_host: 10.0.0.13, node_num: 3}
+        volume:
+          hosts:
+            volume01-dg01: {ansible_host: 10.0.0.11, volume_node_num: 1, volume_dg: 1, volume_rack: rack1, volume_data_dirs: [/mnt/disk1, /mnt/disk2]}
+            volume01-dg02: {ansible_host: 10.0.0.11, volume_node_num: 1, volume_dg: 2, volume_rack: rack1, volume_data_dirs: [/mnt/disk3, /mnt/disk4]}
+            volume02-dg01: {ansible_host: 10.0.0.12, volume_node_num: 2, volume_dg: 1, volume_rack: rack2, volume_data_dirs: [/mnt/disk1, /mnt/disk2]}
+            volume02-dg02: {ansible_host: 10.0.0.12, volume_node_num: 2, volume_dg: 2, volume_rack: rack2, volume_data_dirs: [/mnt/disk3, /mnt/disk4]}
+            volume03-dg01: {ansible_host: 10.0.0.13, volume_node_num: 3, volume_dg: 1, volume_rack: rack3, volume_data_dirs: [/mnt/disk1, /mnt/disk2]}
+            volume03-dg02: {ansible_host: 10.0.0.13, volume_node_num: 3, volume_dg: 2, volume_rack: rack3, volume_data_dirs: [/mnt/disk3, /mnt/disk4]}
+```
+
+`inventory/group_vars/all.yml`:
+
+```yaml
+seaweed_version: "4.48"
+seaweed_large_disk: false      # required: decide once, the two image builds are not interchangeable
+masters_list: ["10.0.0.11:9333", "10.0.0.12:9333", "10.0.0.13:9333"]
+```
+
+Deploy and check:
+
+```bash
+ansible-playbook -i inventory andreyhammer.seaweedfs_docker.site --check   # preview, nothing changes
+ansible-playbook -i inventory andreyhammer.seaweedfs_docker.site
+curl http://10.0.0.11:9333/cluster/status        # a leader and the other masters
+curl http://10.0.0.11:9333/dir/status            # volume servers 10.0.0.1x:8081 and :8082 on three racks
+ssh 10.0.0.11 'cd /opt/seaweed && docker compose ps'   # master01, volume01-dg01, volume01-dg02
+```
+
+Each container gets `/opt/seaweed/<name>/compose.yaml`, and `/opt/seaweed/compose.yaml` on every node includes all
+of them, so `docker compose ps|logs|restart` works there without Ansible. Filers, the admin server and EC workers are
+added the same way (more aliases in the `filer`, `admin` and `worker` groups); `examples/inventory/` shows all of them.
+To add a volume server later, add an alias and run `add_node -e target_node=<alias>`.
+
 ## Image selection
 
 The collection uses the official SeaweedFS image, which comes in two builds that are **not interchangeable for

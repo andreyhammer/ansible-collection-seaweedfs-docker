@@ -1,7 +1,7 @@
 ---
 namespace: andreyhammer
 name: seaweedfs_docker
-version: 1.0.0
+version: 0.1.0
 readme: README.md
 authors:
   - Andrey Andronov
@@ -20,6 +20,8 @@ dependencies:
 build_ignore:
   - .git
   - CLAUDE.md
+  - .claude
+  - .ansible-lint
   - tests/output
   - tests/integration/.work
   - .ansible

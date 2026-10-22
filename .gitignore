@@ -4,3 +4,4 @@ tests/output/
 .ansible/
 tests/integration/.work/
 CLAUDE.md
+.claude/
