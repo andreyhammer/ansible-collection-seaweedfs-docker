@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2 (2026-10-23)
 
 - `disks`: `xfsprogs` is installed with `ansible.builtin.package` (apt, dnf, ...) instead of `apt`, after detecting the
   package manager, so `prepare_disks` works on the Red Hat family too.
