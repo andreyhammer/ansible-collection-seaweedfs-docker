@@ -84,8 +84,9 @@ There are two different kinds of config files, and they are easy to mix up:
   TOML. Mount the file and add `-options=<path>` to `<role>_extra_args`. Setting the same flag through a variable and
   through the options file at once is not tested; use one of them.
 
-Tested: `master.toml`, a `filer.toml` that puts the filer on PostgreSQL, and an options file that sets `dataCenter`
-(the master reports it). Not tested: `security.toml` contents (JWT, TLS), `admin` and `worker` options files.
+Tested: `master.toml`, a `filer.toml` that puts the filer on PostgreSQL, a `security.toml` with `[jwt.filer_signing]` for
+the admin server and the workers (see below), and an options file that sets `dataCenter` (the master reports it). Not
+tested: other `security.toml` contents (TLS, `jwt.signing`), `admin` and `worker` options files.
 
 Example, covering a typical hand-written cluster:
 
@@ -162,12 +163,35 @@ environment variables (`syntax error at or near "%!"`), so use a recent version.
 |---|---|---|
 | `node_num` | required per alias | |
 | `admin_port` | `23646` | |
-| `admin_password` | env `SEAWEED_ADMIN_PASSWORD` | When set, the server listens on all interfaces |
-| `admin_bind_ip` | `""` | Explicit listen address. With a password and no address, 4.48 listens on every interface, but 4.47 only on `127.0.0.1` (seen in a test), so the role's wait for the port times out: set this for older versions |
+| `admin_password` | env `SEAWEED_ADMIN_PASSWORD` | Protects the web UI, which then listens on all interfaces. The worker gRPC port does **not** follow: it needs `admin_bind_ip` |
+| `admin_bind_ip` | `""` | `-ip`: the address the web UI and the worker gRPC port (HTTP port + 10000) listen on, for example the node IP or `0.0.0.0`. **Required when the inventory has workers**: without it the worker port stays on `127.0.0.1` in SeaweedFS 4.48 to 4.50 even with a password, and no worker can connect. Also needed with 4.47, whose web UI listens on loopback with a password |
 | `admin_allow_insecure_bind` | `false` | Binds the node IP **without authentication**; isolated networks only |
 
-Without a password the admin server listens on loopback only, so workers on other nodes cannot reach it. The role
-fails early if the inventory has workers but the admin server would not be reachable.
+Without `admin_bind_ip` (or `admin_allow_insecure_bind` without a password) the admin server accepts workers on
+loopback only. A password is not enough, because it only opens the web UI. The role fails early if the inventory has
+workers and the admin server would not be reachable by them.
+
+**Workers on other nodes need a key (SeaweedFS 4.49 and later).** The admin server then authenticates every worker
+stream: a verified mTLS certificate, or a bearer token signed with `jwt.filer_signing.key`. Without a key only workers
+on the admin's own host are accepted, and the others log `Unauthenticated: admin gRPC calls require
+jwt.filer_signing.key or a local client` and retry forever, while `docker ps` shows them as running. Put the same
+`security.toml` into the admin container and into every worker (the key is a secret, keep it out of the inventory, for
+example read it with `lookup('env', ...)`):
+
+```yaml
+admin_config_files: &security_toml
+  - content: |
+      [jwt.filer_signing]
+      key = "{{ lookup('ansible.builtin.env', 'SEAWEED_JWT_FILER_SIGNING_KEY') }}"
+    dest: /opt/seaweed/config/security.toml
+    container_path: /etc/seaweedfs/security.toml
+    secret: true
+worker_config_files: *security_toml
+```
+
+Do not mount it into the filer or the volume servers unless you also want them to require tokens. Older versions (4.48
+and before) ignore the key and accept any worker that can reach the port. The integration test checks that every
+worker registers (the admin log shows `Plugin worker connected`).
 
 ## Volume
 

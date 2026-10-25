@@ -14,12 +14,16 @@
   vars:
     seaweed_guard_container: "{{ admin_container_name }}"
 
+# A password makes the web UI listen on every interface, but the worker gRPC port follows -ip only (127.0.0.1 by
+# default), so workers on any node, even the admin's own, cannot connect unless -ip is set.
 - name: Require a reachable admin when workers are deployed
   ansible.builtin.assert:
-    that: admin_exposed | bool or (groups['worker'] | default([]) | length) == 0
+    that: admin_workers_reachable | bool or (groups['worker'] | default([]) | length) == 0
     fail_msg: >-
-      The admin server would listen on loopback only, but the inventory has workers that must reach it.
-      Export SEAWEED_ADMIN_PASSWORD, or set admin_allow_insecure_bind: true on an isolated network.
+      The inventory has workers, but the admin server would accept worker connections on loopback only: SeaweedFS binds
+      the worker gRPC port to -ip, which defaults to 127.0.0.1 even when SEAWEED_ADMIN_PASSWORD is set (the password
+      only opens the web UI). Set admin_bind_ip to the address the workers use (the node IP, or 0.0.0.0), or
+      admin_allow_insecure_bind: true on an isolated network.
     quiet: true
 
 - name: Check that a master is reachable

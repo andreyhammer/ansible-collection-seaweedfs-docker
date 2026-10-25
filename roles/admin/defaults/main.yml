@@ -16,15 +16,20 @@ admin_port: 23646
 admin_container_name: "{{ container_prefix }}{{ container_role_admin }}{{ '%02d' | format(node_num | int) }}"
 admin_project_dir: "{{ docker_compose_dir }}/{{ admin_container_name }}"
 
-# The admin server listens on loopback only unless it is protected. To make it reachable (workers on other
-# nodes need that) set SEAWEED_ADMIN_PASSWORD (it then listens on all interfaces), or, for isolated trusted
-# networks only, admin_allow_insecure_bind: true (binds the node IP without authentication).
+# The admin server listens on loopback only unless it is exposed. SEAWEED_ADMIN_PASSWORD opens the web UI on all
+# interfaces, but the worker gRPC port (HTTP port + 10000) follows -ip only, so with workers set admin_bind_ip to the
+# address they use (the node IP, or 0.0.0.0). For isolated trusted networks only, admin_allow_insecure_bind: true binds
+# the node IP without authentication.
 admin_bind_ip: ""
 # Empty = SeaweedFS default user.
 admin_user: ""
 admin_allow_insecure_bind: false
 admin_password: "{{ lookup('ansible.builtin.env', 'SEAWEED_ADMIN_PASSWORD') }}"
 admin_exposed: "{{ admin_password | length > 0 or admin_bind_ip | length > 0 or admin_allow_insecure_bind | bool }}"
+# True when the worker gRPC port is reachable from other hosts: -ip is set explicitly, or the template sets it for
+# admin_allow_insecure_bind (only without a password).
+admin_workers_reachable: >-
+  {{ admin_bind_ip | length > 0 or (admin_allow_insecure_bind | bool and admin_password | length == 0) }}
 
 # Extra options (all roles). *_extra_args are appended to the command; *_environment is merged over
 # seaweed_environment; *_extra_volumes are "host:container[:mode]" strings; *_config_files are deployed

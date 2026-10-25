@@ -53,3 +53,14 @@ filer_config_files:
   - content: "# integration test\n"
     dest: /opt/seaweed/config/filer-test.conf
     container_path: /etc/seaweedfs/filer-test.conf
+# Since SeaweedFS 4.49 the admin server accepts worker streams only from its own host, unless the worker presents a
+# bearer token signed with jwt.filer_signing.key (or an mTLS certificate). The same security.toml, with the key, goes
+# into the admin and every worker. Throwaway key for the disposable stand.
+admin_config_files: &seaweed_security_toml
+  - content: |
+      [jwt.filer_signing]
+      key = "integration-test-admin-key"
+    dest: /opt/seaweed/config/security.toml
+    container_path: /etc/seaweedfs/security.toml
+    secret: true
+worker_config_files: *seaweed_security_toml

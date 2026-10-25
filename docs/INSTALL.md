@@ -89,7 +89,7 @@ See `examples/secrets.env.example`:
 
 ```bash
 export SEAWEED_FILER_POSTGRES_PASSWORD=...   # only when filer_postgres_enabled is true
-export SEAWEED_ADMIN_PASSWORD=...            # needed if workers must reach the admin server
+export SEAWEED_ADMIN_PASSWORD=...            # protects the admin web UI (workers also need admin_bind_ip, see CONFIGURATION.md)
 ```
 
 ## First deployment

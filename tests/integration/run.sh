@@ -98,7 +98,7 @@ fail() { echo "FAIL: $*" >&2; return 1; }
 
 # Checks that go beyond "the port is open": admin authentication, filer metadata in PostgreSQL, S3.
 verify_services() {
-    log "Verify services: admin authentication, filer + PostgreSQL, S3"
+    log "Verify services: admin authentication, workers, filer + PostgreSQL, S3"
     local admin=http://172.29.14.11:23646 filer=http://172.29.14.11:8888 s3=http://172.29.14.11:8333
     local code jar html token name bucket
 
@@ -121,6 +121,22 @@ verify_services() {
         fi
     done
     echo "  OK admin: protected, right password accepted, wrong one rejected"
+
+    # Workers: the collection does not check that a worker registers, so the test does. The admin server logs every
+    # worker that connects; one on a node other than the admin's needs the JWT key from security.toml (4.49 and later).
+    local worker tries connected
+    for worker in worker01-ec01 worker02-vacuum01 worker04-ec01; do
+        connected=0
+        for tries in $(seq 1 30); do
+            if docker exec swfs-test-node01 docker logs admin01 2>&1 | grep -q "Plugin worker connected: $worker "; then
+                connected=1
+                break
+            fi
+            sleep 2
+        done
+        [[ $connected == 1 ]] || fail "$worker never connected to the admin server" || return 1
+    done
+    echo "  OK workers: all three registered with the admin server"
 
     # Filer: data round trip, and the metadata must really be in PostgreSQL (not in the built-in store).
     name="verify-$(date +%s%N).txt"
@@ -400,7 +416,9 @@ ec_shards() {
     vid=${fid%%,*}
     head -c 200000 /dev/urandom | curl -sf -F file=@- "http://$(curl -sf "http://172.29.14.11:9333/dir/lookup?volumeId=$vid" \
         | python3 -c 'import sys,json;print(json.load(sys.stdin)["locations"][0]["url"])')/$fid" >/dev/null
-    out=$(printf 'lock\nec.encode -volumeId=%s\nunlock\n' "$vid" | weed_shell) || true
+    # Since 4.50 ec.encode takes its limits from the master's default replication (010 = one shard per rack) and refuses
+    # to delete the volume when they are not met, which three racks cannot do for 14 shards: ask for no limits.
+    out=$(printf 'lock\nec.encode -volumeId=%s -shardReplicaPlacement=000\nunlock\n' "$vid" | weed_shell) || true
     grep -q 'Successfully completed EC encoding' <<<"$out" || { tail -5 <<<"$out" >&2; fail "ec.encode of volume $vid failed" || return 1; }
     sleep 5
     # A shard file on a first-group disk (disk01/disk02) of node01-03 belongs to that node's dg01 volume server.

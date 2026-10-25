@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- `admin`: the check "workers must reach the admin server" now requires `admin_bind_ip` (or `admin_allow_insecure_bind`
+  without a password). A password alone opens only the web UI: SeaweedFS binds the worker gRPC port to `-ip`, which is
+  `127.0.0.1` by default, so with a password only no worker could connect (seen on 4.48 to 4.50). The example inventory
+  sets `admin_bind_ip`.
+- Documented that SeaweedFS 4.49 and later accept workers on other hosts only with `jwt.filer_signing.key` (the same
+  `security.toml` in the admin and the workers) and how to set it up.
+- Integration test: checks that every worker registers with the admin server, deploys the JWT key, runs against 4.50, and
+  calls `ec.encode` with `-shardReplicaPlacement=000` (4.50 enforces the master's default replication for shards and
+  refuses to encode a volume when three racks cannot satisfy `010`).
+
 ## 0.1.2 (2026-10-23)
 
 - `disks`: `xfsprogs` is installed with `ansible.builtin.package` (apt, dnf, ...) instead of `apt`, after detecting the
