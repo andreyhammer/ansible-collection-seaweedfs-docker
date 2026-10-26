@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 (2026-10-26)
 
 - `admin`: the check "workers must reach the admin server" now requires `admin_bind_ip` (or `admin_allow_insecure_bind`
   without a password). A password alone opens only the web UI: SeaweedFS binds the worker gRPC port to `-ip`, which is

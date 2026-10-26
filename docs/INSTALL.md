@@ -51,7 +51,7 @@ Or install the archive attached to a GitHub release (replace the version as need
 
 ```bash
 ansible-galaxy collection install \
-  https://github.com/andreyhammer/ansible-collection-seaweedfs-docker/releases/download/v0.1.2/andreyhammer-seaweedfs_docker-0.1.2.tar.gz
+  https://github.com/andreyhammer/ansible-collection-seaweedfs-docker/releases/download/v0.1.3/andreyhammer-seaweedfs_docker-0.1.3.tar.gz
 ansible-galaxy collection install -r requirements.yml   # dependencies (community.docker, ansible.posix)
 ```
 
