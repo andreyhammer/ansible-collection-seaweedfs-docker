@@ -124,10 +124,10 @@ verify_services() {
 
     # Workers: the collection does not check that a worker registers, so the test does. The admin server logs every
     # worker that connects; one on a node other than the admin's needs the JWT key from security.toml (4.49 and later).
-    local worker tries connected
+    local worker connected
     for worker in worker01-ec01 worker02-vacuum01 worker04-ec01; do
         connected=0
-        for tries in $(seq 1 30); do
+        for _ in $(seq 1 30); do
             if docker exec swfs-test-node01 docker logs admin01 2>&1 | grep -q "Plugin worker connected: $worker "; then
                 connected=1
                 break
