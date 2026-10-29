@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.4 (2026-10-29)
 
 - `admin`: new `admin_require_password` (default `false`). With `true` the role fails when the admin password is empty,
   instead of silently recreating a protected admin server without a password after a run in a shell that lacks
