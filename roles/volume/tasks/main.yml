@@ -123,7 +123,9 @@
     recurse: true
     owner: "{{ volume_container_uid }}"
     group: "{{ volume_container_gid }}"
-  loop: "{{ volume_foreign_files.results | default([]) | selectattr('stdout', 'truthy') }}"
+  loop: >-
+    {{ volume_foreign_files.results | default([])
+       | selectattr('stdout', 'defined') | selectattr('stdout', 'truthy') | list }}
   loop_control:
     label: "{{ item.item }}"
   when: volume_fix_ownership | bool
@@ -135,7 +137,9 @@
       (first one: {{ item.stdout }}). The container would not be able to use them. Fix it with
       `chown -R {{ volume_container_uid }}:{{ volume_container_gid }} {{ item.item }}` or run with
       -e volume_fix_ownership=true.
-  loop: "{{ volume_foreign_files.results | default([]) | selectattr('stdout', 'truthy') }}"
+  loop: >-
+    {{ volume_foreign_files.results | default([])
+       | selectattr('stdout', 'defined') | selectattr('stdout', 'truthy') | list }}
   loop_control:
     label: "{{ item.item }}"
   when: volume_check_ownership | bool and not volume_fix_ownership | bool

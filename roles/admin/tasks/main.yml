@@ -7,6 +7,15 @@
     fail_msg: "node_num and masters_list must be set for {{ inventory_hostname }}."
     quiet: true
 
+- name: Require the admin password when it is mandatory
+  ansible.builtin.assert:
+    that: not (admin_require_password | bool) or admin_password | length > 0
+    fail_msg: >-
+      admin_require_password is set, but the admin password is empty: export SEAWEED_ADMIN_PASSWORD (or set
+      admin_password) before the run. Deploying now would recreate the admin server without a password.
+    quiet: true
+  no_log: true
+
 - name: Check the image variant
   ansible.builtin.include_role:
     name: andreyhammer.seaweedfs_docker.common

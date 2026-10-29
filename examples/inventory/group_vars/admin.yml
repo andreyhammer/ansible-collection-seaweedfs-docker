@@ -10,6 +10,8 @@ admin_port: 23646
 # or, on an isolated trusted network only, admin_allow_insecure_bind: true (binds the node IP WITHOUT authentication).
 # admin_user: admin                 # -adminUser; empty = SeaweedFS default
 # admin_allow_insecure_bind: false
+# Refuse to run when SEAWEED_ADMIN_PASSWORD is empty (otherwise the admin server is recreated without a password):
+# admin_require_password: true
 # An options file holds `optionName=optionValue` lines (it is not TOML):
 # admin_extra_args: ["-options=/etc/seaweedfs/admin.conf"]
 # admin_config_files:

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- `admin`: new `admin_require_password` (default `false`). With `true` the role fails when the admin password is empty,
+  instead of silently recreating a protected admin server without a password after a run in a shell that lacks
+  `SEAWEED_ADMIN_PASSWORD`. The integration test enables it and checks the refusal.
+- `volume`: with `volume_entrypoint` set, the check for files that belong to another user is skipped, but the two tasks
+  that read its result still evaluated their loop and failed on the skipped results ("object of type 'dict' has no
+  attribute 'stdout'"), so such a volume server could not be deployed.
+
 ## 0.1.3 (2026-10-26)
 
 - `admin`: the check "workers must reach the admin server" now requires `admin_bind_ip` (or `admin_allow_insecure_bind`

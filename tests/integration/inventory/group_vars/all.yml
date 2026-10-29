@@ -15,6 +15,7 @@ common_min_free_gb: 0
 volume_max_volumes: 12
 
 # The admin server is protected by SEAWEED_ADMIN_PASSWORD (exported by run.sh), so it listens on all interfaces.
+admin_require_password: true
 
 # Filer: PostgreSQL metadata store (started by run.sh inside node01) and the S3 gateway.
 filer_postgres_enabled: true

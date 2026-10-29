@@ -164,6 +164,7 @@ environment variables (`syntax error at or near "%!"`), so use a recent version.
 | `node_num` | required per alias | |
 | `admin_port` | `23646` | |
 | `admin_password` | env `SEAWEED_ADMIN_PASSWORD` | Protects the web UI, which then listens on all interfaces. The worker gRPC port does **not** follow: it needs `admin_bind_ip` |
+| `admin_require_password` | `false` | `true` refuses the run when the password is empty. Set it on a cluster whose admin server is protected: a run from a shell without `SEAWEED_ADMIN_PASSWORD` would otherwise recreate the admin server **without** a password |
 | `admin_bind_ip` | `""` | `-ip`: the address the web UI and the worker gRPC port (HTTP port + 10000) listen on, for example the node IP or `0.0.0.0`. **Required when the inventory has workers**: without it the worker port stays on `127.0.0.1` in SeaweedFS 4.48 to 4.50 even with a password, and no worker can connect. Also needed with 4.47, whose web UI listens on loopback with a password |
 | `admin_allow_insecure_bind` | `false` | Binds the node IP **without authentication**; isolated networks only |
 

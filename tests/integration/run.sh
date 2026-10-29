@@ -454,6 +454,15 @@ guard() {
     echo "OK: variant switch refused"
     verify test-a
 
+    log "Guard: admin_require_password must refuse an empty admin password"
+    if out=$(SEAWEED_ADMIN_PASSWORD='' ansible-playbook "$COLLECTION.site" -e seaweed_version=test-a --limit admin01 2>&1); then
+        echo "FAIL: the admin server was deployed without a password" >&2
+        return 1
+    fi
+    grep -q 'admin_require_password is set, but the admin password is empty' <<<"$out" \
+        || { echo "FAIL: refused, but not by the password guard" >&2; tail -20 <<<"$out" >&2; return 1; }
+    echo "OK: an empty admin password is refused"
+
     log "Guard: a missing seaweed_large_disk must be rejected"
     if out=$(ansible-playbook -i localhost, guard_missing.yml 2>&1); then
         echo "FAIL: a missing seaweed_large_disk was accepted" >&2

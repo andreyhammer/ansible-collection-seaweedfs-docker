@@ -25,6 +25,9 @@ admin_bind_ip: ""
 admin_user: ""
 admin_allow_insecure_bind: false
 admin_password: "{{ lookup('ansible.builtin.env', 'SEAWEED_ADMIN_PASSWORD') }}"
+# true = refuse to deploy the admin server when the password is empty. Without it, a run in a shell that lacks
+# SEAWEED_ADMIN_PASSWORD silently recreates a protected admin server WITHOUT a password.
+admin_require_password: false
 admin_exposed: "{{ admin_password | length > 0 or admin_bind_ip | length > 0 or admin_allow_insecure_bind | bool }}"
 # True when the worker gRPC port is reachable from other hosts: -ip is set explicitly, or the template sets it for
 # admin_allow_insecure_bind (only without a password).
