@@ -82,3 +82,18 @@
                  ~ ':' ~ (8080 + (volume_dg | int))
                  ~ ' -maintenanceOff'
                  if 'volume' in group_names else '' }}
+
+- name: Remind to keep the inventory in step
+  hosts: localhost
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Ask the operator to update seaweed_version in the inventory
+      ansible.builtin.debug:
+        msg:
+          - "The {{ target_group | default('volume') }} group now runs SeaweedFS {{ seaweed_version }}."
+          - >-
+            ACTION NEEDED: this version came from the command line. Set seaweed_version: "{{ seaweed_version }}" in your
+            inventory (or group_vars) once every group is upgraded.
+      run_once: true
+

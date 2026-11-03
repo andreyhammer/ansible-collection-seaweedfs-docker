@@ -36,8 +36,8 @@ volume05-dg01: {ansible_host: 10.0.0.15, seaweed_ip: 192.168.50.15, ...}
 ```
 
 `masters_list` must use the cluster addresses. The port and registration checks run on the managed node itself, so
-only that node needs to reach the cluster network; the control machine does not (except for the master leader lookup in
-`rolling_update`, which queries the first entry of `masters_list` from the control machine).
+only that node needs to reach the cluster network; the control machine does not (the master leader lookup in
+`rolling_update` also runs on the first master of the play).
 
 ## Image (all roles)
 
