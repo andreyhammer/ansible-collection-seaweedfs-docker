@@ -96,4 +96,3 @@
             ACTION NEEDED: this version came from the command line. Set seaweed_version: "{{ seaweed_version }}" in your
             inventory (or group_vars) once every group is upgraded.
       run_once: true
-
