@@ -24,6 +24,8 @@ masters: "{{ masters_list | join(',') }}"
 # ---- Optional settings (the values shown are the defaults; uncomment to change) -------------------------------
 # Refuse to replace a running regular container with a large_disk one or the reverse. Leave false.
 # seaweed_allow_variant_change: false
+# Refuse to replace a running container with an older release (numeric tags only). Leave false except for a rollback.
+# seaweed_allow_downgrade: false
 
 # Environment variables for EVERY container (per role: <role>_environment). Example: gRPC tuning.
 # seaweed_environment:

@@ -175,6 +175,9 @@ Safeguards (run before any container is created or recreated, so `site`, `add_no
 - They fail if an existing container runs the other build than the one requested, so an update can never silently
   turn a large_disk cluster into a regular one or the reverse. With `serial: 1` the rolling update stops on the first host.
   `seaweed_allow_variant_change: true` disables this check; use it only for a deliberate, tested migration.
+- They fail if an existing container runs a newer release than `seaweed_version` (only numeric tags such as `4.52`
+  are compared), so a stale inventory cannot roll a cluster back after an upgrade done with `-e seaweed_version=X`.
+  `seaweed_allow_downgrade: true` disables this check for a deliberate rollback.
 
 ## Testing on disposable nodes
 

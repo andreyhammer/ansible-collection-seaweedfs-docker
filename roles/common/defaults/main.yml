@@ -10,6 +10,9 @@ compose_project_name: seaweed
 # DANGEROUS: allow replacing a running regular container with a large_disk one (or the reverse).
 # The two builds use different volume index formats; only set this for a deliberate, tested migration.
 seaweed_allow_variant_change: false
+# Allow replacing a running container with an older release. Off by default so that a stale seaweed_version in the
+# inventory cannot roll a cluster back after an upgrade done with -e seaweed_version=X.
+seaweed_allow_downgrade: false
 container_prefix: ""
 health_check_timeout: 60
 

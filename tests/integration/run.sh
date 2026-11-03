@@ -454,6 +454,21 @@ guard() {
     echo "OK: variant switch refused"
     verify test-a
 
+    log "Guard: a downgrade of an existing container must be refused"
+    # The test containers run the tag test-a, which cannot be ordered, so a stand-in container with a numeric tag is used.
+    docker exec swfs-test-node01 sh -c "docker tag chrislusf/seaweedfs:test-a${TAG_SUFFIX} chrislusf/seaweedfs:9.9${TAG_SUFFIX} \
+        && docker rm -f swfs-guard-fake >/dev/null 2>&1; docker create --name swfs-guard-fake chrislusf/seaweedfs:9.9${TAG_SUFFIX} >/dev/null"
+    local rc=0
+    out=$(ansible-playbook guard_downgrade.yml "${EXTRA_VARS[@]}" 2>&1) || rc=$?
+    docker exec swfs-test-node01 docker rm -f swfs-guard-fake >/dev/null 2>&1 || true
+    docker exec swfs-test-node01 docker rmi "chrislusf/seaweedfs:9.9${TAG_SUFFIX}" >/dev/null 2>&1 || true
+    if [[ $rc -ne 0 ]]; then
+        echo "FAIL: downgrade guard test" >&2
+        tail -30 <<<"$out" >&2
+        return 1
+    fi
+    echo "OK: downgrade refused, upgrade and override allowed"
+
     log "Guard: admin_require_password must refuse an empty admin password"
     if out=$(SEAWEED_ADMIN_PASSWORD='' ansible-playbook "$COLLECTION.site" -e seaweed_version=test-a --limit admin01 2>&1); then
         echo "FAIL: the admin server was deployed without a password" >&2

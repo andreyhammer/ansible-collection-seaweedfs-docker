@@ -24,3 +24,26 @@
       interchangeable for existing data. Fix seaweed_large_disk, or set seaweed_allow_variant_change=true only
       for a deliberate, tested migration.
     quiet: true
+
+# Only plain numeric tags (4.52, 4.9.1) are compared; latest, test-a and the like cannot be ordered.
+- name: Work out the running and the requested version
+  ansible.builtin.set_fact:
+    seaweed_guard_running_version: >-
+      {{ (seaweed_guard_current.stdout | trim).split(':') | last | regex_replace('_large_disk$', '') }}
+    seaweed_guard_requested_version: "{{ seaweed_version | string | regex_replace('_large_disk$', '') }}"
+  when: seaweed_guard_current.rc == 0
+
+- name: Refuse to downgrade an existing container
+  ansible.builtin.assert:
+    that: >-
+      seaweed_guard_current.rc != 0
+      or seaweed_allow_downgrade | bool
+      or not (seaweed_guard_running_version is match('^[0-9]+(\.[0-9]+)*$')
+              and seaweed_guard_requested_version is match('^[0-9]+(\.[0-9]+)*$'))
+      or seaweed_guard_requested_version is version(seaweed_guard_running_version, '>=')
+    fail_msg: >-
+      {{ seaweed_guard_container }} runs SeaweedFS {{ seaweed_guard_running_version | default('') }} but
+      seaweed_version is {{ seaweed_version }}: that is a downgrade, and a newer release may have changed the data
+      format. Usually this means the inventory lags behind an upgrade done with -e seaweed_version=...; set
+      seaweed_version in the inventory. Set seaweed_allow_downgrade=true only for a deliberate rollback.
+    quiet: true

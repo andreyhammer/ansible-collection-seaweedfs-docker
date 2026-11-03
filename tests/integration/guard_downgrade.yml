@@ -1,0 +1,37 @@
+---
+# Needs a container named swfs-guard-fake on the first master node, created from a numeric tag (9.9). Checks that
+# the downgrade guard refuses an older version and lets an equal, a newer one and an explicit override through.
+- name: The downgrade guard
+  hosts: master01
+  gather_facts: false
+  vars:
+    seaweed_guard_container: swfs-guard-fake
+  tasks:
+    - name: An older version is refused
+      block:
+        - name: Run the guard with an older version
+          ansible.builtin.include_role:
+            name: andreyhammer.seaweedfs_docker.common
+            tasks_from: image_guard
+          vars:
+            seaweed_version: "4.1"
+        - name: The guard let a downgrade through
+          ansible.builtin.fail:
+            msg: the downgrade was not refused
+      rescue:
+        - name: Check that the refusal is the downgrade message
+          ansible.builtin.assert:
+            that: "'that is a downgrade' in ansible_failed_result.msg"
+
+    - name: Equal, newer and overridden versions pass
+      ansible.builtin.include_role:
+        name: andreyhammer.seaweedfs_docker.common
+        tasks_from: image_guard
+      vars:
+        seaweed_version: "{{ item.version }}"
+        seaweed_allow_downgrade: "{{ item.allow | default(false) }}"
+      loop:
+        - {version: "9.9"}
+        - {version: "9.10"}
+        - {version: "4.1", allow: true}
+        - {version: "latest"}
