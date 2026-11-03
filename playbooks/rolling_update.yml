@@ -17,7 +17,8 @@
         return_content: true
       register: rolling_cluster_status
       run_once: true
-      delegate_to: localhost
+      # From a master host, not from the control node: the cluster network is not always reachable from there.
+      delegate_to: "{{ ansible_play_hosts_all | first }}"
       when: (target_group | default('volume')) == 'master'
 
     - name: Resolve the leader alias
