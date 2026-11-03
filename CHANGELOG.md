@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.5 (2026-11-03)
+
+- Downgrade guard: every role refuses to replace an existing container with an older release (numeric tags such as
+  `4.52` are compared; `latest` and custom tags are not). `rolling_update -e seaweed_version=X` takes the version from
+  the command line, so a stale `seaweed_version` in the inventory would otherwise roll the cluster back on the next
+  `site` run. `seaweed_allow_downgrade: true` allows a deliberate rollback.
+- `rolling_update`: the master leader is looked up from the first master host instead of the control node, which cannot
+  always reach the cluster network.
+- `rolling_update` ends with a reminder to set `seaweed_version` in the inventory, because the version came from `-e`.
+- Integration test: also runs the downgrade guard and passes on SeaweedFS 4.52.
+
 ## 0.1.4 (2026-10-29)
 
 - `admin`: new `admin_require_password` (default `false`). With `true` the role fails when the admin password is empty,
