@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.7 (2026-11-04)
+
+- New playbook `volume_rolling_restart`: restarts the volume servers one at a time without an upgrade. Each server is put
+  in maintenance mode, its container is restarted (`docker compose restart`, not recreated, so configuration and image
+  stay as they are), and the play waits for its port, its registration in the master and its EC shards before the next
+  server (`volume_ec_check`, `volume_ec_register_timeout`, as in `rolling_update`); it stops at the first failure. Use
+  `--limit` for a single server. The wait steps moved from `main.yml` into `wait_ready.yml`, shared by the start and
+  the restart. The integration test restarts two servers with `--limit` and checks that a third one is left alone
+  (SeaweedFS 4.52).
+
 ## 0.1.6 (2026-11-04)
 
 - `worker`: new job suffix `adminscript` (job type `admin_script`, one per cluster). With an admin server connected the
