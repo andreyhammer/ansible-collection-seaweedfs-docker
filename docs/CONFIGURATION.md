@@ -215,6 +215,10 @@ and `volume_disk_type`.
 | `volume_fix_ownership` | `false` | Recursively chown such files instead of failing; can take long on full disks |
 | `volume_ec_check` | `true` | After every start, wait until the master lists the EC shards the server had registered before |
 | `volume_ec_register_timeout` | `300` | Seconds to wait for them; the run fails after that |
+
+`volume_rolling_restart` (restart without an upgrade) uses the same two variables: each server is put in maintenance mode,
+its container is restarted (`docker compose restart`, not recreated), and the play waits for its port, its registration
+in the master and its EC shards before the next server; it stops at the first failure. Use `--limit` for one server.
 | `volume_index_dir` | `""` | Index directory on the host, mounted at `/idx` and passed as `-dir.idx`. Empty = no `-dir.idx`, the index files stay next to the data. Set it to a directory on SSD, e.g. `"{{ volume_project_dir }}/idx"`. The role refuses to run when an `index` or `idx` directory with files exists in the container directory and is not the configured one |
 
 The data directories are mounted as `/data/disk1`, `/data/disk2`, ... in the order of `volume_data_dirs`.

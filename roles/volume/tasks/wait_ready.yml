@@ -1,0 +1,33 @@
+---
+# Waits until a started volume server is usable: its port answers, the master lists it, and (with volume_ec_check) its
+# EC shards are registered again. Needs volume_ec_shards_before when volume_ec_check is set. Included by main.yml (after
+# a start) and restart.yml (after a restart).
+- name: Wait for the volume port
+  ansible.builtin.wait_for:
+    host: "{{ (seaweed_ip | default(ansible_host, true)) }}"
+    port: "{{ volume_port }}"
+    timeout: "{{ health_check_timeout }}"
+  when: not ansible_check_mode
+
+- name: Verify the volume server is registered in the master
+  ansible.builtin.include_role:
+    name: andreyhammer.seaweedfs_docker.common
+    tasks_from: cluster_status
+  vars:
+    seaweed_expected_node: "{{ (seaweed_ip | default(ansible_host, true)) }}:{{ volume_port }}"
+    seaweed_status_path: /dir/status
+  when: not ansible_check_mode
+
+- name: Wait until the EC shards are registered again
+  ansible.builtin.include_tasks: ec_shards.yml
+  vars:
+    volume_ec_wait_for: "{{ volume_ec_shards_before }}"
+  when: not ansible_check_mode and volume_ec_check | bool
+
+- name: Fail when EC shards did not come back
+  ansible.builtin.fail:
+    msg: >-
+      {{ inventory_hostname }} had {{ volume_ec_shards_before }} EC shards registered before the start but the master
+      lists {{ volume_ec_shards_now }} after {{ volume_ec_register_timeout }} s. Not continuing: check the volume
+      server log and `ec.volume.list`-style output in weed shell before touching another server.
+  when: not ansible_check_mode and volume_ec_check | bool and volume_ec_shards_now | int < volume_ec_shards_before | int

@@ -1,0 +1,24 @@
+---
+# Restarts this volume server's container with `docker compose restart` and waits until it is ready again. The
+# container is not recreated, so nothing about its configuration changes. Maintenance mode is left to the caller
+# (playbooks/volume_rolling_restart.yml).
+- name: Count the EC shards registered before the restart
+  ansible.builtin.include_tasks: ec_shards.yml
+  when: not ansible_check_mode and volume_ec_check | bool
+
+- name: Remember the EC shard count before the restart
+  ansible.builtin.set_fact:
+    volume_ec_shards_before: "{{ volume_ec_shards_now }}"
+  when: not ansible_check_mode and volume_ec_check | bool
+
+- name: Restart the volume container
+  community.docker.docker_compose_v2:
+    project_src: "{{ volume_project_dir }}"
+    project_name: "{{ compose_project_name }}"
+    services:
+      - "{{ volume_container_name }}"
+    state: restarted
+  when: not ansible_check_mode
+
+- name: Wait until the volume server is ready
+  ansible.builtin.include_tasks: wait_ready.yml

@@ -2,7 +2,7 @@
 # Integration tests on disposable Docker-in-Docker nodes. Nothing here touches real hosts.
 #
 #   ./run.sh test     full run: up, deploy, verify, idempotence, rolling update, down
-#   ./run.sh up|deploy|verify|idempotence|dryrun|addnode|masters|removemasters|ecshards|maintenance|failpath|guard|disks|compose|update|down|shell <node>
+#   ./run.sh up|deploy|verify|idempotence|dryrun|addnode|masters|removemasters|ecshards|maintenance|volrestart|failpath|guard|disks|compose|update|down|shell <node>
 #
 # Env: KEEP=1 keeps the nodes after `test`.
 #      SEAWEED_TEST_LARGE_DISK=1 tests the official large_disk build instead of the regular one.
@@ -338,6 +338,26 @@ maintenance_effect() {
 }
 
 # An upgrade that fails must stop the run at the first instance, leave the cluster serving, and be recoverable.
+# volume_rolling_restart restarts the servers it is limited to and nothing else, and the cluster is healthy afterwards.
+volume_restart() {
+    log "Volume rolling restart: two volume servers are restarted one at a time, a third is left alone"
+    local started_a started_b started_c after
+    started() { docker exec "swfs-test-$1" docker inspect --format '{{.State.StartedAt}}' "$2"; }
+    started_a=$(started node01 volume01-dg01)
+    started_b=$(started node02 volume02-dg01)
+    started_c=$(started node03 volume03-dg01)
+    ansible-playbook "$COLLECTION.volume_rolling_restart" "${EXTRA_VARS[@]}" --limit volume01-dg01,volume02-dg01
+    after=$(started node01 volume01-dg01)
+    [[ $after != "$started_a" ]] || fail "volume01-dg01 was not restarted" || return 1
+    after=$(started node02 volume02-dg01)
+    [[ $after != "$started_b" ]] || fail "volume02-dg01 was not restarted" || return 1
+    after=$(started node03 volume03-dg01)
+    [[ $after == "$started_c" ]] || fail "volume03-dg01 was restarted although it is not in --limit" || return 1
+    [[ $(maintenance_state 172.29.14.11:8081) == no ]] || fail "volume01-dg01 is still in maintenance mode" || return 1
+    echo "  OK both servers were restarted, the third was not, maintenance mode is off"
+    verify test-a
+}
+
 failpath() {
     log "Failure path: an upgrade to a missing image tag stops at the first volume server"
     local out s hosts_run
@@ -622,6 +642,7 @@ case ${1:-test} in
     dryrun) dryrun_fresh; dryrun_live ;;
     addnode) deploy_partial; add_nodes ;;
     maintenance) maintenance_effect ;;
+    volrestart) volume_restart ;;
     failpath) failpath ;;
     masters) add_masters ;;
     removemasters) remove_masters ;;
@@ -648,6 +669,7 @@ case ${1:-test} in
         compose
         ownership
         maintenance_effect
+        volume_restart
         failpath
         ec_shards
         update

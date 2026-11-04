@@ -1,0 +1,41 @@
+---
+# Restarts the volume servers one at a time, each in maintenance mode, and stops at the first failure. The
+# containers are restarted, not recreated, so no configuration or image changes. A server counts as done when the
+# master lists it again with all the EC shards it had before (volume_ec_check, default true).
+# Usage: ansible-playbook andreyhammer.seaweedfs_docker.volume_rolling_restart [--limit volume01-dg01]
+- name: Rolling restart of the volume servers
+  hosts: volume
+  serial: 1
+  max_fail_percentage: 0
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Restart one volume server
+      block:
+        - name: Maintenance mode on
+          ansible.builtin.include_role:
+            name: andreyhammer.seaweedfs_docker.volume
+            tasks_from: maintenance
+          vars:
+            volume_maintenance: true
+
+        - name: Restart the container and wait for it
+          ansible.builtin.include_role:
+            name: andreyhammer.seaweedfs_docker.volume
+            tasks_from: restart
+
+        - name: Maintenance mode off
+          ansible.builtin.include_role:
+            name: andreyhammer.seaweedfs_docker.volume
+            tasks_from: maintenance
+          vars:
+            volume_maintenance: false
+      rescue:
+        - name: Stop the rolling restart
+          ansible.builtin.fail:
+            msg: >-
+              Restart of {{ inventory_hostname }} failed; the rolling restart is stopped.
+              Reason: {{ ansible_failed_result.msg | default('unknown') }}
+              The volume server may still be in maintenance mode. Re-run the restart, or run in weed shell:
+              volumeServer.state -nodes {{ seaweed_ip | default(ansible_host, true) }}:{{ 8080 + (volume_dg | int) }}
+              -maintenanceOff
