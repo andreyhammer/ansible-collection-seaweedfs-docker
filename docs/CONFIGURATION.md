@@ -240,4 +240,22 @@ Per alias: `worker_node_num`, `worker_job_suffix`, `worker_job_index`, `worker_j
 | `worker_metrics_port` | `0` | `0` disables metrics; set per alias to give each worker its own port |
 
 Default `worker_jobs`: `ec` (`erasure_coding`, 2), `balance` (`ec_balance`, 1), `lifecycle` (`s3_lifecycle`, 1),
-`vacuum` (`vacuum`, 1). The worker id (`-id`) is `worker_id`, by default the container name.
+`vacuum` (`vacuum`, 1), `adminscript` (`admin_script`, 1). The worker id (`-id`) is `worker_id`, by default the container name.
+
+### Admin script worker
+
+With an admin server connected the masters skip their `[master.maintenance]` scripts, and the admin server hands that
+work to a worker of type `admin_script` instead. Without one nothing runs them, so for example `fs.log.purge` never
+removes the filer metadata log (`/topics/.system/log`), which then grows without limit (about 0.5 GiB a day on a cluster
+with 10 million files). Deploy exactly one such worker per cluster (alias `worker01-adminscript01`, suffix `adminscript`).
+Two would run the script twice.
+
+The script is set in the admin UI, not in the inventory. Its default in recent SeaweedFS releases is
+`fs.log.purge -daysAgo=7`, `volume.deleteEmpty -quietFor=24h -apply`, `volume.fix.replication -apply` and
+`s3.clean.uploads -timeAgo=24h`, every 17 minutes. **Review it before the first run:** it changes data on its own
+(`volume.fix.replication -apply` copies and deletes volume replicas). Do not omit `lock` and `unlock` by hand, the admin
+server takes the lock itself. `fs.log.purge` deletes history that a `filer.sync` or `filer.backup` subscriber may still
+need; keep at least as many days as the longest outage you want to survive. The log grows with the number of file
+operations, about 0.5 GiB a day on a cluster with 10 million files, so `fs.log.purge -daysAgo=30` costs about 16 GiB and
+is a safe choice (the SeaweedFS default is 7 days). The first purge removes everything older than the limit at once
+and cannot be undone, so check for `filer.sync` and `filer.backup` subscribers first.

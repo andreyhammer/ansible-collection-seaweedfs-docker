@@ -125,7 +125,7 @@ verify_services() {
     # Workers: the collection does not check that a worker registers, so the test does. The admin server logs every
     # worker that connects; one on a node other than the admin's needs the JWT key from security.toml (4.49 and later).
     local worker connected
-    for worker in worker01-ec01 worker02-vacuum01 worker04-ec01; do
+    for worker in worker01-ec01 worker02-vacuum01 worker03-adminscript01 worker04-ec01; do
         connected=0
         for _ in $(seq 1 30); do
             if docker exec swfs-test-node01 docker logs admin01 2>&1 | grep -q "Plugin worker connected: $worker "; then
@@ -136,7 +136,7 @@ verify_services() {
         done
         [[ $connected == 1 ]] || fail "$worker never connected to the admin server" || return 1
     done
-    echo "  OK workers: all three registered with the admin server"
+    echo "  OK workers: all four registered with the admin server"
 
     # Filer: data round trip, and the metadata must really be in PostgreSQL (not in the built-in store).
     name="verify-$(date +%s%N).txt"

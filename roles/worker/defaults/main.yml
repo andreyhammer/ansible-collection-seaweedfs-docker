@@ -29,6 +29,11 @@ worker_jobs:
   vacuum:
     type: vacuum
     instances: 1
+  # Runs the admin script (a list of weed shell commands set in the admin UI) on a schedule. Needed when an admin
+  # server is connected, because the master then skips its own maintenance scripts. Deploy one per cluster.
+  adminscript:
+    type: admin_script
+    instances: 1
 
 worker_max_execute: 1
 # Worker id shown in the admin UI; defaults to the container name.

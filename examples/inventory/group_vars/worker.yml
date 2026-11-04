@@ -12,6 +12,9 @@ worker_jobs:
   vacuum:
     type: vacuum
     instances: 1
+  adminscript:
+    type: admin_script
+    instances: 1
 
 # 0 disables metrics. Override per alias (host_vars) to give workers distinct ports.
 worker_metrics_port: 0
