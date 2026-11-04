@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.6 (2026-11-04)
+
+- `worker`: new job suffix `adminscript` (job type `admin_script`, one per cluster). With an admin server connected the
+  masters skip their `[master.maintenance]` scripts and a worker of type `admin_script` runs them instead; without one
+  nothing runs `fs.log.purge`, so the filer metadata log (`/topics/.system/log`) grows without limit (about 0.5 GiB a
+  day on a cluster with 10 million files). The docs explain that the script is set in the admin UI, that its default
+  includes `volume.fix.replication -apply` and `volume.deleteEmpty -apply` and must be reviewed first, and recommend
+  `fs.log.purge -daysAgo=30`. The integration test deploys the worker and checks that it registers (SeaweedFS 4.52).
+- Removed a trailing blank line in `playbooks/rolling_update.yml` that failed yamllint in CI for 0.1.5.
+
 ## 0.1.5 (2026-11-03)
 
 - Downgrade guard: every role refuses to replace an existing container with an older release (numeric tags such as
