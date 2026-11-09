@@ -47,7 +47,7 @@ only that node needs to reach the cluster network; the control machine does not 
 | `seaweed_version` | `latest` | Pin a real version in production |
 | `seaweed_image_repo` | `chrislusf/seaweedfs` | Mirror or private registry |
 | `seaweed_image` | derived | Overriding it requires a matching `seaweed_large_disk` |
-| `seaweed_allow_variant_change` | `false` | See MIGRATION.md before touching it |
+| `seaweed_allow_variant_change` | `false` | See UPGRADE.md before touching it |
 | `seaweed_allow_downgrade` | `false` | Allow a container to be replaced by an older numeric release (a rollback) |
 
 ## Extra options (all roles)

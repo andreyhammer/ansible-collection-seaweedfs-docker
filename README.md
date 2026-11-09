@@ -85,7 +85,7 @@ Maintained on a best-effort basis; issues and pull requests are welcome.
 
 - [Installation](docs/INSTALL.md): requirements, inventory, secrets, first deployment.
 - [Configuration reference](docs/CONFIGURATION.md): every variable by role, naming, ports.
-- [Upgrades and migrations](docs/MIGRATION.md): rolling update, image variant rules, taking over a hand-made cluster.
+- [Upgrades and migrations](docs/UPGRADE.md): rolling update, image variant rules, taking over a hand-made cluster.
 
 ## Quick start
 
