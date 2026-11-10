@@ -53,7 +53,7 @@ Repeat with `-e target_group=filer`, `admin`, `volume` and `worker`. What to loo
 | `worker` | one worker at a time | the workers reconnect to the admin server |
 
 The volume group is the slow one: each server waits until the master lists its EC shards again
-(`volume_ec_register_timeout`) before the next one is touched. Do not interrupt it.
+(`volume_ec_register_timeout`, `volume_ec_settle_seconds`) before the next one is touched. Do not interrupt it.
 
 **4. If a run fails**
 
@@ -91,12 +91,13 @@ set `seaweed_allow_downgrade: true` for a rollback you have tested on a copy of 
   `volumeServer.state -nodes <ip:port> -maintenanceOff` in `weed shell`. Both the stop and the recovery are covered
   by the integration tests.
 - Each step waits for the node to be back in the cluster before moving on. For a volume server that also means its
-  erasure coding shards: before the restart the role reads how many EC shards the master lists for the server, and after
-  the restart it waits until the master lists at least that many again (the shards are registered by the server's
-  heartbeat, which can come a little after the server itself appears). If they do not come back within
+  erasure coding shards: after the restart the role waits until the master has stopped listing more EC shards for the server (the
+  number is not zero and did not change for `volume_ec_settle_seconds`, 60 s). The shards are registered by the
+  server's heartbeat, which can come minutes after the server itself appears. The number before the restart is not the
+  target, because the cluster moves and expires shards while the server is down. If the registration is not over within
   `volume_ec_register_timeout` (300 s) the update stops before the next server is touched, so two servers holding
   shards of the same EC volume are never down at once. The server stays in maintenance mode, as after any other
-  failure. Covered by an integration test (a deleted shard file stops the upgrade).
+  failure. Covered by an integration test (a server that lost a shard still comes back and the run reports the lower number).
 - Keep `seaweed_large_disk` unchanged. Take backups of the data you cannot lose before the first production upgrade;
   the collection does not do it for you.
 

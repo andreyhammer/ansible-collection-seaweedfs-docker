@@ -213,10 +213,11 @@ and `volume_disk_type`.
 | `volume_container_uid` / `_gid` | `1000` / `1000` | Owner of the data and index directories on the host, matching the image's `seaweed` user |
 | `volume_check_ownership` | `true` | Before starting, fail if a data or index dir holds files not owned by the container user (skipped when `volume_entrypoint` is set) |
 | `volume_fix_ownership` | `false` | Recursively chown such files instead of failing; can take long on full disks |
-| `volume_ec_check` | `true` | After every start, wait until the master lists the EC shards the server had registered before |
-| `volume_ec_register_timeout` | `300` | Seconds to wait for them; the run fails after that |
+| `volume_ec_check` | `true` | After every start, wait until the server has registered its EC shards with the master: the number the master lists is not zero and has not changed for `volume_ec_settle_seconds`. Skipped for a server that had no EC shards |
+| `volume_ec_register_timeout` | `300` | Seconds to wait for that; the run fails after that. Raise it for servers with tens of thousands of shards |
+| `volume_ec_settle_seconds` | `60` | How long the count must stay unchanged |
 
-`volume_rolling_restart` (restart without an upgrade) uses the same two variables: each server is put in maintenance mode,
+`volume_rolling_restart` (restart without an upgrade) uses the same variables: each server is put in maintenance mode,
 its container is restarted (`docker compose restart`, not recreated), and the play waits for its port, its registration
 in the master and its EC shards before the next server; it stops at the first failure. Use `--limit` for one server.
 | `volume_index_dir` | `""` | Index directory on the host, mounted at `/idx` and passed as `-dir.idx`. Empty = no `-dir.idx`, the index files stay next to the data. Set it to a directory on SSD, e.g. `"{{ volume_project_dir }}/idx"`. The role refuses to run when an `index` or `idx` directory with files exists in the container directory and is not the configured one |

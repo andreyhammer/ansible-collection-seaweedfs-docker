@@ -1,0 +1,21 @@
+---
+# One round of the wait in wait_ready.yml: reads the EC shard count the master has for this server. The registration is
+# over when the count is not zero and has not changed since the previous round (volume_ec_settle_seconds ago);
+# otherwise it waits for the next round.
+- name: Read the EC shard count
+  ansible.builtin.include_tasks: ec_shards.yml
+
+- name: Check whether the EC shard registration has finished
+  ansible.builtin.set_fact:
+    volume_ec_settled: "{{ volume_ec_shards_now | int > 0 and volume_ec_shards_now | int == volume_ec_shards_prev | int }}"
+
+- name: Remember the EC shard count of this round
+  ansible.builtin.set_fact:
+    volume_ec_shards_prev: "{{ volume_ec_shards_now }}"
+
+- name: Wait for more EC shards to register
+  ansible.builtin.wait_for:
+    timeout: "{{ volume_ec_settle_seconds }}"
+  delegate_to: localhost
+  become: false
+  when: not volume_ec_settled | bool

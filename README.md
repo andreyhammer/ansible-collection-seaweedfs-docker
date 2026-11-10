@@ -17,7 +17,7 @@ rolling updates and disk preparation. Tested on Debian 12, Ubuntu 24.04 and Rock
   starting a volume server on a missing index directory, and a rolling update that stops at the first failure (masters
   first, the raft leader last).
 - Checks after every start: the port answers, the server is registered in the masters, and a volume server's EC shards
-  come back after a restart.
+  are registered again after a restart.
 - Day-two tools: add a node, add or remove masters (in pairs), prepare blank data disks (XFS, mounted by label).
 - Every node also gets one `docker compose` project, so you can look at it and restart things by hand without Ansible
   (see `docs/INSTALL.md`, "Manage by hand").

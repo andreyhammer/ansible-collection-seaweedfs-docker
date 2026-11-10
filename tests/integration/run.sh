@@ -430,7 +430,7 @@ remove_masters() {
 
 # EC volumes: a volume server must re-register its erasure coding shards before the next server is touched.
 ec_shards() {
-    log "EC shards: encode a volume, then a server that lost a shard must stop the upgrade"
+    log "EC shards: encode a volume, then a server that lost a shard must still come back and report the lower count"
     local fid vid out n file alias=""
     fid=$(curl -sf "http://172.29.14.11:9333/dir/assign" | python3 -c 'import sys,json;print(json.load(sys.stdin)["fid"])')
     vid=${fid%%,*}
@@ -449,12 +449,11 @@ ec_shards() {
     [[ -n $alias ]] || fail "no shard of volume $vid found on a dg01 disk" || return 1
     echo "  volume $vid is erasure coded; deleting $file on $alias"
     docker exec "swfs-test-node0$n" rm -f "$file"
-    if out=$(ansible-playbook "$COLLECTION.rolling_update" "${EXTRA_VARS[@]}" -e seaweed_version=test-b -e target_group=volume \
-        -e volume_ec_register_timeout=15 --limit "$alias" 2>&1); then
-        fail "the upgrade went on although a shard did not come back" || return 1
-    fi
-    grep -q 'EC shards registered before the start' <<<"$out" || { tail -20 <<<"$out" >&2; fail "stopped, but not because of the missing shard" || return 1; }
-    echo "  OK the upgrade stops when a shard does not come back"
+    out=$(ansible-playbook "$COLLECTION.rolling_update" "${EXTRA_VARS[@]}" -e seaweed_version=test-b -e target_group=volume \
+        -e volume_ec_settle_seconds=5 --limit "$alias" 2>&1) \
+        || { tail -20 <<<"$out" >&2; fail "the upgrade stopped although the server came back" || return 1; }
+    grep -q "$alias: the master lists .* EC shards" <<<"$out" || { tail -20 <<<"$out" >&2; fail "the EC shard count was not reported" || return 1; }
+    echo "  OK a server that lost a shard comes back and the run reports the count"
 }
 
 guard() {

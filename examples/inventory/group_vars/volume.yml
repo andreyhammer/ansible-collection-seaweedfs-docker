@@ -24,9 +24,11 @@ volume_index_dir: "{{ volume_project_dir }}/idx"
 # volume_check_ownership: true
 # volume_fix_ownership: false
 
-# After every start wait until the master lists the EC shards the server had before; stop the update otherwise.
+# After every start wait until the server has registered its EC shards (the number the master lists stops changing);
+# stop the update when that takes longer than the timeout.
 # volume_ec_check: true
 # volume_ec_register_timeout: 300
+# volume_ec_settle_seconds: 60
 
 # Anything else: extra flags, environment, mounts, config files.
 # volume_extra_args: ["-readMode=proxy"]

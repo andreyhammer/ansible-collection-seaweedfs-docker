@@ -38,9 +38,12 @@ volume_container_gid: 1000
 volume_check_ownership: true
 # Instead of refusing, recursively chown them. Can take long on full disks; a one-off migration aid.
 volume_fix_ownership: false
-# After every start, wait until the master lists the EC shards this server had before it (heartbeat registration).
+# After every start, wait until the server has registered its EC shards with the master (heartbeat registration): the
+# number the master lists is not zero and did not change for volume_ec_settle_seconds. Gives up after
+# volume_ec_register_timeout seconds.
 volume_ec_check: true
 volume_ec_register_timeout: 300
+volume_ec_settle_seconds: 60
 volume_rack: ""
 volume_disk_type: "{{ volume_disk_type_default }}"
 # Empty = no -dir.idx: SeaweedFS keeps the index files next to the data (the simplest layout). A directory, usually on

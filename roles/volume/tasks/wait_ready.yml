@@ -19,15 +19,33 @@
   when: not ansible_check_mode
 
 - name: Wait until the EC shards are registered again
-  ansible.builtin.include_tasks: ec_shards.yml
-  vars:
-    volume_ec_wait_for: "{{ volume_ec_shards_before }}"
-  when: not ansible_check_mode and volume_ec_check | bool
+  when: not ansible_check_mode and volume_ec_check | bool and volume_ec_shards_before | int > 0
+  block:
+    - name: Start waiting for the EC shard registration
+      ansible.builtin.set_fact:
+        volume_ec_settled: false
+        volume_ec_shards_prev: -1
 
-- name: Fail when EC shards did not come back
-  ansible.builtin.fail:
-    msg: >-
-      {{ inventory_hostname }} had {{ volume_ec_shards_before }} EC shards registered before the start but the master
-      lists {{ volume_ec_shards_now }} after {{ volume_ec_register_timeout }} s. Not continuing: check the volume
-      server log and `ec.volume.list`-style output in weed shell before touching another server.
-  when: not ansible_check_mode and volume_ec_check | bool and volume_ec_shards_now | int < volume_ec_shards_before | int
+    # The server registers its shards with the heartbeat after the start, which takes minutes with tens of thousands of
+    # them. The count is compared with the previous round, not with the number before the start: shards are also moved
+    # and deleted (TTL) by the cluster while the server is down.
+    - name: Wait until the master stops listing more EC shards
+      ansible.builtin.include_tasks: ec_settle.yml
+      loop: "{{ range(((volume_ec_register_timeout | int) / (volume_ec_settle_seconds | int)) | round(0, 'ceil') | int + 1) | list }}"
+      loop_control:
+        loop_var: volume_ec_round
+      when: not volume_ec_settled | bool
+
+    - name: Fail when the EC shards are still being registered
+      ansible.builtin.fail:
+        msg: >-
+          {{ inventory_hostname }} had {{ volume_ec_shards_before }} EC shards registered before the start; after
+          {{ volume_ec_register_timeout }} s the master lists {{ volume_ec_shards_now }} and the number is still
+          changing or is zero. Not continuing: check the volume server log before touching another server.
+      when: not volume_ec_settled | bool
+
+    - name: Report the EC shards
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: the master lists {{ volume_ec_shards_now }} EC shards
+          ({{ volume_ec_shards_before }} before the start).

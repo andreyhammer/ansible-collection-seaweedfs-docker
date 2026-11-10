@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `volume`: the wait for a restarted server's EC shards no longer compares the master's count with the number before
+  the restart. It failed on healthy servers when the cluster moved or expired shards in the meantime (an EC worker
+  moving shards, TTL). The wait now ends when the number the master lists is not zero and has not changed for
+  `volume_ec_settle_seconds` (new, default 60); `volume_ec_register_timeout` is still the limit. A server that comes
+  back with fewer shards than before is no longer stopped on that alone: the run prints both numbers.
+
 ## 0.1.7 (2026-11-04)
 
 - New playbook `volume_rolling_restart`: restarts the volume servers one at a time without an upgrade. Each server is put
