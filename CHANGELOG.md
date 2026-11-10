@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.8 (2026-11-10)
 
 - The maintenance mode task is named after what it does ("Maintenance mode ON for <host>" / "OFF"); it used to have
   the same title for both.
