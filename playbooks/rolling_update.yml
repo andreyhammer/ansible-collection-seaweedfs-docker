@@ -1,7 +1,8 @@
 ---
 # Usage: ansible-playbook andreyhammer.seaweedfs_docker.rolling_update -e seaweed_version=X [-e target_group=master]
 # Upgrade order: master (leader last), filer, admin, volume, worker; run one group per invocation.
-# An instance whose container already runs the requested image is left alone (-e rolling_update_force=true to go through it).
+# An instance whose container already runs the requested image is left alone
+# (-e rolling_update_force=true to go through it).
 - name: Build the upgrade order
   hosts: "{{ target_group | default('volume') }}"
   gather_facts: false
@@ -75,7 +76,9 @@
 
         - name: Skip the instance that is already up to date
           ansible.builtin.debug:
-            msg: "{{ inventory_hostname }} already runs SeaweedFS {{ seaweed_version }}; nothing to do (rolling_update_force=true to go through it anyway)."
+            msg: >-
+              {{ inventory_hostname }} already runs SeaweedFS {{ seaweed_version }}; nothing to do
+              (rolling_update_force=true to go through it anyway).
           when: seaweed_image_current | bool and not rolling_update_force | bool
 
         - name: Maintenance mode on (volume only)

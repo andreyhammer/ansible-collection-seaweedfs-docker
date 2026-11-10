@@ -209,7 +209,8 @@ rolling_all() {
     for group in master filer admin volume worker; do
         [[ $group == master ]] && leader_before=$(master_leader_node)
         log "Rolling update ${group} -> ${version}${TAG_SUFFIX}"
-        ansible-playbook "$COLLECTION.rolling_update" "${EXTRA_VARS[@]}" -e "seaweed_version=${version}" -e "target_group=${group}"
+        ansible-playbook "$COLLECTION.rolling_update" "${EXTRA_VARS[@]}" -e "seaweed_version=${version}" -e "target_group=${group}" \
+            -e rolling_update_force=true
         [[ $group == master ]] && check_leader_last "$leader_before"
     done
     return 0
@@ -374,7 +375,8 @@ failpath() {
     echo "  OK the failed server is still in maintenance mode, as documented"
 
     log "Failure path: re-running the update recovers the cluster"
-    ansible-playbook "$COLLECTION.rolling_update" "${EXTRA_VARS[@]}" -e seaweed_version=test-a -e target_group=volume
+    ansible-playbook "$COLLECTION.rolling_update" "${EXTRA_VARS[@]}" -e seaweed_version=test-a -e target_group=volume \
+        -e rolling_update_force=true
     for s in "${VOLUME_SERVERS[@]}"; do
         [[ $(maintenance_state "$s") == no ]] || fail "$s is still in maintenance mode after the re-run" || return 1
     done
