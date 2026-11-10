@@ -1,0 +1,8 @@
+---
+# Sets seaweed_image_current for this instance (used by rolling_update to skip an instance that is already up to date).
+- name: Compare the running image with the requested one
+  ansible.builtin.include_role:
+    name: andreyhammer.seaweedfs_docker.common
+    tasks_from: image_current
+  vars:
+    seaweed_guard_container: "{{ volume_container_name }}"

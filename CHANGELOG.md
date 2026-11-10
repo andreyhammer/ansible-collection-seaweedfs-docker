@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `rolling_update` skips an instance whose container already runs the requested image and is running (no maintenance
+  mode, no redeploy, no wait for the EC shards). A repeated run after a failure used to go through every server again.
+  `-e rolling_update_force=true` restores the old behaviour. Configuration changes are applied by `site`, not by
+  `rolling_update`.
 - `rolling_update` and `volume_rolling_restart` read every volume server's data and index directories before the
   first server is touched (`volume_preflight_timeout`). A disk that dropped out or a file system that was shut down
   after I/O errors used to be found only when the run reached that server, after others had been restarted; now the

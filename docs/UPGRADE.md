@@ -2,7 +2,10 @@
 
 ## Upgrading SeaweedFS
 
-Use the rolling update. It changes the image tag one container at a time and stops at the first failure.
+Use the rolling update. It changes the image tag one container at a time and stops at the first failure. An instance whose
+container already runs the requested image (and is running) is skipped, so a run that stopped half way can be repeated
+without going through the servers that are done again; `-e rolling_update_force=true` goes through them anyway. Changing
+settings is the job of `site`, not of the rolling update.
 
 ### Step by step
 

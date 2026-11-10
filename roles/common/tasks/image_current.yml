@@ -1,0 +1,15 @@
+---
+# Sets seaweed_image_current: whether the container already runs the requested image (and is running), so that a rolling
+# update can leave it alone.
+# Input: seaweed_guard_container - name of the container of this instance.
+- name: Inspect the existing container
+  ansible.builtin.command: >-
+    docker inspect --format '{% raw %}{{.Config.Image}} {{.State.Running}}{% endraw %}' {{ seaweed_guard_container }}
+  register: seaweed_current_inspect
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Remember whether the container already runs the requested image
+  ansible.builtin.set_fact:
+    seaweed_image_current: "{{ seaweed_current_inspect.rc == 0 and (seaweed_current_inspect.stdout | trim) == seaweed_image ~ ' true' }}"
