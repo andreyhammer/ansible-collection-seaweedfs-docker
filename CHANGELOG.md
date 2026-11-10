@@ -6,10 +6,12 @@
   mode, no redeploy, no wait for the EC shards). A repeated run after a failure used to go through every server again.
   `-e rolling_update_force=true` restores the old behaviour. Configuration changes are applied by `site`, not by
   `rolling_update`.
-- `rolling_update` and `volume_rolling_restart` read every volume server's data and index directories before the
-  first server is touched (`volume_preflight_timeout`). A disk that dropped out or a file system that was shut down
-  after I/O errors used to be found only when the run reached that server, after others had been restarted; now the
-  run stops before anything is changed. The stop message of a failed server also lists the failed item and its error
+- `rolling_update` and `volume_rolling_restart` check every volume server before the first one is touched: the data and
+  index directories are read (`volume_preflight_timeout`), and files that the container user does not own are looked
+  for (the same test that main.yml refuses to start on; skipped with `volume_fix_ownership` or
+  `volume_check_ownership: false`). A disk that dropped out, a file system that was shut down after I/O errors or
+  foreign files used to be found only when the run reached that server, after others had been restarted; now the run
+  stops before anything is changed. The stop message of a failed server also lists the failed item and its error
   instead of only "One or more items failed".
 - `volume`: the wait for a restarted server's EC shards no longer compares the master's count with the number before
   the restart. It failed on healthy servers when the cluster moved or expired shards in the meantime (an EC worker

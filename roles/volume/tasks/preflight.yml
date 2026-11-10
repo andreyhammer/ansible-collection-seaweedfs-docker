@@ -1,8 +1,8 @@
 ---
-# Read-only check that runs on every volume server before a rolling update or restart touches the first one. A data or
-# index directory that cannot be read (a disk that dropped out, a file system shut down after I/O errors) is found
-# now, not after some servers have been restarted. `ls` reads the directory itself; `timeout` keeps a hanging disk
-# from hanging the run.
+# Read-only checks that run on every volume server before a rolling update or restart touches the first one. A data
+# or index directory that cannot be read (a disk that dropped out, a file system shut down after I/O errors) or that
+# holds files the container user cannot use is found now, not after some servers have been restarted. `ls` reads the
+# directory itself; `timeout` keeps a hanging disk from hanging the run.
 - name: Read the data and index directories
   ansible.builtin.command:
     argv: ["timeout", "{{ volume_preflight_timeout }}", "ls", "-A", "{{ item }}"]
@@ -12,12 +12,47 @@
   failed_when: false
   check_mode: false
 
-- name: Fail when a directory cannot be read
+# The same test as in main.yml, which refuses to start the container on such files.
+- name: Look for files not owned by the container user
+  ansible.builtin.command:
+    argv:
+      - find
+      - "{{ item }}"
+      - -mindepth
+      - "1"
+      - "!"
+      - "("
+      - -uid
+      - "{{ volume_container_uid }}"
+      - -gid
+      - "{{ volume_container_gid }}"
+      - ")"
+      - -print
+      - -quit
+  loop: "{{ volume_data_dirs + ([volume_index_dir] if volume_index_dir | length > 0 else []) }}"
+  register: volume_preflight_owner
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: volume_check_ownership | bool and not volume_fix_ownership | bool and volume_entrypoint | length == 0
+
+- name: Fail when a directory cannot be used
   ansible.builtin.fail:
-    msg: >-
-      {{ inventory_hostname }}: cannot read {{ volume_preflight_bad | map(attribute='item') | join(', ') }}.
-      Errors: {{ volume_preflight_bad | map(attribute='stderr') | map('trim') | join(' | ') }}
-      (empty means no answer within {{ volume_preflight_timeout }} s). Nothing was changed on any server.
+    msg: "{{ inventory_hostname }}: {{ volume_preflight_problems }}. Nothing was changed on any server."
   vars:
     volume_preflight_bad: "{{ volume_preflight.results | selectattr('rc', 'ne', 0) | list }}"
-  when: volume_preflight_bad | length > 0
+    volume_preflight_foreign: >-
+      {{ volume_preflight_owner.results | default([]) | selectattr('stdout', 'defined') | selectattr('stdout', 'truthy')
+         | list }}
+    volume_preflight_problems: >-
+      {%- set found = [] -%}
+      {%- for r in volume_preflight_bad -%}
+      {%- set _ = found.append('cannot read ' ~ r.item ~ ' (' ~ (r.stderr | trim or ('no answer within '
+          ~ volume_preflight_timeout ~ ' s')) ~ ')') -%}
+      {%- endfor -%}
+      {%- for r in volume_preflight_foreign -%}
+      {%- set _ = found.append(r.item ~ ' holds files not owned by ' ~ volume_container_uid ~ ':'
+          ~ volume_container_gid ~ ' (first one: ' ~ r.stdout ~ '; chown them or set volume_fix_ownership=true)') -%}
+      {%- endfor -%}
+      {{ found | join('; ') }}
+  when: volume_preflight_bad | length > 0 or volume_preflight_foreign | length > 0

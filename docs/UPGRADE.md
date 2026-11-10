@@ -52,7 +52,7 @@ Repeat with `-e target_group=filer`, `admin`, `volume` and `worker`. What to loo
 | `master` | one master at a time, the leader last | `http://<master>:9333/cluster/status` lists all masters and one leader |
 | `filer` | one filer at a time | the filer and S3 ports answer; a test upload and download work |
 | `admin` | the admin server | the admin UI opens and lists all workers |
-| `volume` | before the first server is touched, every data and index directory is read (a disk that does not answer stops the run); then per server: maintenance mode on, upgrade, wait for the port, the registration and the EC shards, maintenance mode off, next server | the master lists every volume server; no volume is read-only that was not before |
+| `volume` | before the first server is touched, every data and index directory is read and checked for files the container user cannot use (a disk that does not answer, or foreign files, stop the run); then per server: maintenance mode on, upgrade, wait for the port, the registration and the EC shards, maintenance mode off, next server | the master lists every volume server; no volume is read-only that was not before |
 | `worker` | one worker at a time | the workers reconnect to the admin server |
 
 The volume group is the slow one: each server waits until the master lists its EC shards again
