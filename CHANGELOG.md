@@ -2,7 +2,7 @@
 
 ## 0.1.8 (2026-11-10)
 
-- The maintenance mode task is named after what it does ("Maintenance mode ON for <host>" / "OFF"); it used to have
+- The maintenance mode task is named after what it does ("Set maintenance mode on <host>: ON" / "OFF"); it used to have
   the same title for both.
 - `rolling_update` skips an instance whose container already runs the requested image and is running (no maintenance
   mode, no redeploy, no wait for the EC shards). A repeated run after a failure used to go through every server again.
