@@ -1,6 +1,6 @@
 ---
 # Toggle maintenance mode for this volume server. Set `volume_maintenance: true|false` before including.
-- name: Set volume maintenance mode
+- name: "Maintenance mode {{ 'ON' if volume_maintenance_enabled | bool else 'OFF' }} for {{ inventory_hostname }}"
   ansible.builtin.command:
     cmd: "docker exec -i {{ seaweed_shell_container }} weed shell -master={{ masters_list | first }}"
     stdin: "{{ volume_maintenance_command }}"
