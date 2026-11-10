@@ -367,7 +367,8 @@ failpath() {
     fi
     grep -q 'the rolling update is stopped' <<<"$out" || { tail -20 <<<"$out" >&2; fail "no stop message" || return 1; }
     grep -q 'maintenanceOff' <<<"$out" || fail "the error message does not tell how to leave maintenance mode" || return 1
-    hosts_run=$(awk '/PLAY RECAP/{r=1;n=0;next} r&&/ : ok=[1-9]/{n++} END{print n}' <<<"$out")
+    # The pre-flight play touches every host read-only, so count the hosts that reached the upgrade instead.
+    hosts_run=$(grep -c 'TASK \[Deploy the new version\]' <<<"$out" || true)
     [[ $hosts_run == 1 ]] || fail "$hosts_run hosts were touched, expected only the first" || return 1
     echo "  OK stopped at the first volume server (the others were not touched)"
     verify test-a
