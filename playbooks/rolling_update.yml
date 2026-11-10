@@ -75,7 +75,7 @@
 
         - name: Skip the instance that is already up to date
           ansible.builtin.debug:
-            msg: "{{ inventory_hostname }} already runs {{ seaweed_image }}; nothing to do (rolling_update_force=true to go through it anyway)."
+            msg: "{{ inventory_hostname }} already runs SeaweedFS {{ seaweed_version }}; nothing to do (rolling_update_force=true to go through it anyway)."
           when: seaweed_image_current | bool and not rolling_update_force | bool
 
         - name: Maintenance mode on (volume only)
