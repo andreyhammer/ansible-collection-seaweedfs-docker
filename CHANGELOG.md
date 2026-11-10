@@ -1,8 +1,17 @@
 # Changelog
 
+## 0.1.9 (2026-11-11)
+
+- No functional change to the roles apart from one task name: the maintenance mode task is now called
+  `Set maintenance mode: ON` / `OFF`, because ansible-lint (production profile) allows a template only once, at the
+  end of a task name. The 0.1.8 tag does not pass lint and the integration test; this release does.
+- Long YAML lines are wrapped (yamllint) and the integration test is adapted to the skip of up-to-date instances
+  (`rolling_update_force=true` where it re-runs the same version) and to the pre-flight play (the failure-path test
+  counts the hosts that reached the upgrade instead of the hosts listed in the recap).
+
 ## 0.1.8 (2026-11-10)
 
-- The maintenance mode task is named after what it does ("Set maintenance mode: ON" / "OFF"); it used to have
+- The maintenance mode task is named after what it does ("Maintenance mode ON for <host>" / "OFF"); it used to have
   the same title for both.
 - `rolling_update` skips an instance whose container already runs the requested image and is running (no maintenance
   mode, no redeploy, no wait for the EC shards). A repeated run after a failure used to go through every server again.
