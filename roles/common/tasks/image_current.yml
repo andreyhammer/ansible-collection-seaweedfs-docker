@@ -12,4 +12,6 @@
 
 - name: Remember whether the container already runs the requested image
   ansible.builtin.set_fact:
-    seaweed_image_current: "{{ seaweed_current_inspect.rc == 0 and (seaweed_current_inspect.stdout | trim) == seaweed_image ~ ' true' }}"
+    seaweed_image_current: >-
+      {{ seaweed_current_inspect.rc == 0
+         and (seaweed_current_inspect.stdout | trim) == seaweed_image ~ ' true' }}

@@ -26,7 +26,8 @@
         volume_ec_settled: false
         volume_ec_shards_prev: -1
         volume_ec_round: 0
-        volume_ec_max_rounds: "{{ ((volume_ec_register_timeout | int) / (volume_ec_settle_seconds | int)) | round(0, 'ceil') | int + 1 }}"
+        volume_ec_max_rounds: >-
+          {{ ((volume_ec_register_timeout | int) / (volume_ec_settle_seconds | int)) | round(0, 'ceil') | int + 1 }}
 
     # The server registers its shards with the heartbeat after the start, which can take minutes with tens of thousands
     # of them. The count is compared with the previous round, not with the number before the start: shards are also

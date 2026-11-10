@@ -7,7 +7,8 @@
 
 - name: Check whether the EC shard registration has finished
   ansible.builtin.set_fact:
-    volume_ec_settled: "{{ volume_ec_shards_now | int > 0 and volume_ec_shards_now | int == volume_ec_shards_prev | int }}"
+    volume_ec_settled: >-
+      {{ volume_ec_shards_now | int > 0 and volume_ec_shards_now | int == volume_ec_shards_prev | int }}
     volume_ec_shards_prev: "{{ volume_ec_shards_now }}"
     volume_ec_round: "{{ volume_ec_round | int + 1 }}"
 
