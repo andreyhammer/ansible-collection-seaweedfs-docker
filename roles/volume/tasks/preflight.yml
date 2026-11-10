@@ -1,0 +1,23 @@
+---
+# Read-only check that runs on every volume server before a rolling update or restart touches the first one. A data or
+# index directory that cannot be read (a disk that dropped out, a file system shut down after I/O errors) is found
+# now, not after some servers have been restarted. `ls` reads the directory itself; `timeout` keeps a hanging disk
+# from hanging the run.
+- name: Read the data and index directories
+  ansible.builtin.command:
+    argv: ["timeout", "{{ volume_preflight_timeout }}", "ls", "-A", "{{ item }}"]
+  loop: "{{ volume_data_dirs + ([volume_index_dir] if volume_index_dir | length > 0 else []) }}"
+  register: volume_preflight
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Fail when a directory cannot be read
+  ansible.builtin.fail:
+    msg: >-
+      {{ inventory_hostname }}: cannot read {{ volume_preflight_bad | map(attribute='item') | join(', ') }}.
+      Errors: {{ volume_preflight_bad | map(attribute='stderr') | map('trim') | join(' | ') }}
+      (empty means no answer within {{ volume_preflight_timeout }} s). Nothing was changed on any server.
+  vars:
+    volume_preflight_bad: "{{ volume_preflight.results | selectattr('rc', 'ne', 0) | list }}"
+  when: volume_preflight_bad | length > 0

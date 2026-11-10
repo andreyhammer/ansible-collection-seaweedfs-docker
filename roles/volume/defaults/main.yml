@@ -44,6 +44,8 @@ volume_fix_ownership: false
 volume_ec_check: true
 volume_ec_register_timeout: 300
 volume_ec_settle_seconds: 60
+# Seconds the pre-flight check of a rolling update waits for a data or index directory to answer.
+volume_preflight_timeout: 30
 volume_rack: ""
 volume_disk_type: "{{ volume_disk_type_default }}"
 # Empty = no -dir.idx: SeaweedFS keeps the index files next to the data (the simplest layout). A directory, usually on

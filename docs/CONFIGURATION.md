@@ -216,6 +216,7 @@ and `volume_disk_type`.
 | `volume_ec_check` | `true` | After every start, wait until the server has registered its EC shards with the master: the number the master lists is not zero and has not changed for `volume_ec_settle_seconds`. Skipped for a server that had no EC shards |
 | `volume_ec_register_timeout` | `300` | Seconds to wait for that; the run fails after that. Raise it for servers with tens of thousands of shards |
 | `volume_ec_settle_seconds` | `60` | How long the count must stay unchanged |
+| `volume_preflight_timeout` | `30` | Seconds each data or index directory may take to answer the check that `rolling_update` and `volume_rolling_restart` run on every volume server before touching the first one |
 
 `volume_rolling_restart` (restart without an upgrade) uses the same variables: each server is put in maintenance mode,
 its container is restarted (`docker compose restart`, not recreated), and the play waits for its port, its registration

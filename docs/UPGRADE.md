@@ -49,7 +49,7 @@ Repeat with `-e target_group=filer`, `admin`, `volume` and `worker`. What to loo
 | `master` | one master at a time, the leader last | `http://<master>:9333/cluster/status` lists all masters and one leader |
 | `filer` | one filer at a time | the filer and S3 ports answer; a test upload and download work |
 | `admin` | the admin server | the admin UI opens and lists all workers |
-| `volume` | maintenance mode on, upgrade, wait for the port, the registration and the EC shards, maintenance mode off, next server | the master lists every volume server; no volume is read-only that was not before |
+| `volume` | before the first server is touched, every data and index directory is read (a disk that does not answer stops the run); then per server: maintenance mode on, upgrade, wait for the port, the registration and the EC shards, maintenance mode off, next server | the master lists every volume server; no volume is read-only that was not before |
 | `worker` | one worker at a time | the workers reconnect to the admin server |
 
 The volume group is the slow one: each server waits until the master lists its EC shards again
@@ -57,7 +57,7 @@ The volume group is the slow one: each server waits until the master lists its E
 
 **4. If a run fails**
 
-The run stops at the first failed instance and the others are not touched. Read the message: it says what failed. A
+The run stops at the first failed instance and the others are not touched. Read the message: it says what failed, including the directory or item that failed. A
 volume server stays in maintenance mode after a failure, and the message gives the command to switch it off. Fix the
 cause and run the same command again; the roles are idempotent, so instances that are already on `<new>` are not
 recreated. Do not start the next group while a previous one is half done.

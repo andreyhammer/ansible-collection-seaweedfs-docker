@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `rolling_update` and `volume_rolling_restart` read every volume server's data and index directories before the
+  first server is touched (`volume_preflight_timeout`). A disk that dropped out or a file system that was shut down
+  after I/O errors used to be found only when the run reached that server, after others had been restarted; now the
+  run stops before anything is changed. The stop message of a failed server also lists the failed item and its error
+  instead of only "One or more items failed".
 - `volume`: the wait for a restarted server's EC shards no longer compares the master's count with the number before
   the restart. It failed on healthy servers when the cluster moved or expired shards in the meantime (an EC worker
   moving shards, TTL). The wait now ends when the number the master lists is not zero and has not changed for

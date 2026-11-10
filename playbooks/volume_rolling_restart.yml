@@ -3,6 +3,18 @@
 # containers are restarted, not recreated, so no configuration or image changes. A server counts as done when the
 # master lists it again and has stopped listing more of its EC shards (volume_ec_check, default true).
 # Usage: ansible-playbook andreyhammer.seaweedfs_docker.volume_rolling_restart [--limit volume01-dg01]
+# Nothing has been changed yet, so a disk that does not answer stops the run before the first server is restarted.
+- name: Check the volume servers before touching any of them
+  hosts: volume
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  tasks:
+    - name: Read the data and index directories
+      ansible.builtin.include_role:
+        name: andreyhammer.seaweedfs_docker.volume
+        tasks_from: preflight
+
 - name: Rolling restart of the volume servers
   hosts: volume
   serial: 1
@@ -36,6 +48,11 @@
             msg: >-
               Restart of {{ inventory_hostname }} failed; the rolling restart is stopped.
               Reason: {{ ansible_failed_result.msg | default('unknown') }}
+              {{ ('(' ~ restart_failed_items | join('; ') ~ ')') if restart_failed_items | length > 0 else '' }}
               The volume server may still be in maintenance mode. Re-run the restart, or run in weed shell:
               volumeServer.state -nodes {{ seaweed_ip | default(ansible_host, true) }}:{{ 8080 + (volume_dg | int) }}
               -maintenanceOff
+          vars:
+            restart_failed_items: >-
+              {{ (ansible_failed_result.results | default([])) | selectattr('failed', 'defined') | selectattr('failed')
+                 | selectattr('msg', 'defined') | map(attribute='msg') | list }}

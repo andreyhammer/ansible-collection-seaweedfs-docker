@@ -42,6 +42,19 @@
       run_once: true
       delegate_to: localhost
 
+# Nothing has been changed yet, so a disk that does not answer stops the run before the first server is restarted.
+- name: Check the volume servers before touching any of them
+  hosts: seaweed_upgrade_order
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  tasks:
+    - name: Read the data and index directories
+      ansible.builtin.include_role:
+        name: andreyhammer.seaweedfs_docker.volume
+        tasks_from: preflight
+      when: "'volume' in group_names"
+
 - name: Rolling update
   hosts: seaweed_upgrade_order
   serial: 1
@@ -77,11 +90,16 @@
             msg: >-
               Upgrade of {{ inventory_hostname }} failed; the rolling update is stopped.
               Reason: {{ ansible_failed_result.msg | default('unknown') }}
+              {{ ('(' ~ rolling_failed_items | join('; ') ~ ')') if rolling_failed_items | length > 0 else '' }}
               {{ 'The volume server may still be in maintenance mode. Re-run the update, or run in weed shell:'
                  ~ ' volumeServer.state -nodes ' ~ (seaweed_ip | default(ansible_host, true))
                  ~ ':' ~ (8080 + (volume_dg | int))
                  ~ ' -maintenanceOff'
                  if 'volume' in group_names else '' }}
+          vars:
+            rolling_failed_items: >-
+              {{ (ansible_failed_result.results | default([])) | selectattr('failed', 'defined') | selectattr('failed')
+                 | selectattr('msg', 'defined') | map(attribute='msg') | list }}
 
 - name: Remind to keep the inventory in step
   hosts: localhost
