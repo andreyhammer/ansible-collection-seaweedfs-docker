@@ -1,16 +1,16 @@
 ---
-# One group of the rolling update; imported once per group by rolling_update.yml, not meant to be run on its own.
+# One group of the rolling update (rolling_group, volume when unset); imported once per group by rolling_update.yml.
 # An instance whose container already runs the requested image is left alone
 # (-e rolling_update_force=true to go through it).
 - name: Build the upgrade order
-  hosts: "{{ rolling_group }}"
+  hosts: "{{ rolling_group | default('volume') }}"
   gather_facts: false
   become: false
   tasks:
     - name: Record the cluster address of every host
       ansible.builtin.set_fact:
         seaweed_node_ip: "{{ seaweed_ip | default(ansible_host, true) }}"
-      when: rolling_group == 'master'
+      when: (rolling_group | default('volume')) == 'master'
 
     - name: Find the current master leader
       ansible.builtin.uri:
@@ -20,7 +20,7 @@
       run_once: true
       # From a master host, not from the control node: the cluster network is not always reachable from there.
       delegate_to: "{{ ansible_play_hosts_all | first }}"
-      when: rolling_group == 'master'
+      when: (rolling_group | default('volume')) == 'master'
 
     - name: Resolve the leader alias
       ansible.builtin.set_fact:
@@ -31,12 +31,12 @@
              | map(attribute='key') | list }}
       run_once: true
       delegate_to: localhost
-      when: rolling_group == 'master'
+      when: (rolling_group | default('volume')) == 'master'
 
     - name: Build the ordered host group (leader last)
       ansible.builtin.add_host:
         name: "{{ item }}"
-        groups: "seaweed_upgrade_order_{{ rolling_group }}"
+        groups: "seaweed_upgrade_order_{{ rolling_group | default('volume') }}"
       loop: >-
         {{ ansible_play_hosts_all | reject('in', rolling_leader_aliases | default([])) | list
            + (rolling_leader_aliases | default([])) }}
@@ -45,7 +45,7 @@
 
 # Nothing has been changed yet, so a disk that does not answer stops the run before the first server is restarted.
 - name: Check the volume servers before touching any of them
-  hosts: "seaweed_upgrade_order_{{ rolling_group }}"
+  hosts: "seaweed_upgrade_order_{{ rolling_group | default('volume') }}"
   gather_facts: false
   become: true
   any_errors_fatal: true
@@ -57,7 +57,7 @@
       when: "'volume' in group_names"
 
 - name: Rolling update
-  hosts: "seaweed_upgrade_order_{{ rolling_group }}"
+  hosts: "seaweed_upgrade_order_{{ rolling_group | default('volume') }}"
   serial: 1
   vars:
     rolling_update_force: false
