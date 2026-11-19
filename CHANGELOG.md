@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.11 (2026-11-19)
 
 - The wait for the EC shards after a volume server start no longer polls the shard count at the master. That count keeps
   changing while the EC and balance workers add, move and remove shards, so the wait ran up to the timeout (25 minutes
