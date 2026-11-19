@@ -3,7 +3,8 @@
 # Upgrade order: master (leader last), filer, admin, volume, worker. Without target_group every group is upgraded in
 # that order and the run stops at the first failure; with target_group only that group is upgraded.
 # An instance whose container already runs the requested image is left alone
-# (-e rolling_update_force=true to go through it).
+# (-e rolling_update_force=true to go through it). Workers hold no data and are upgraded at the same time; one by one
+# with -e rolling_update_worker_serial=1. Every other group goes one instance at a time.
 # Nothing has been changed yet, so a missing secret stops the run before the first container is touched.
 - name: Check the secrets before touching any server
   hosts: "{{ target_group | default('seaweed') }}"
@@ -50,6 +51,7 @@
   ansible.builtin.import_playbook: rolling_update_group.yml
   vars:
     rolling_group: worker
+    rolling_serial: "{{ rolling_update_worker_serial | default('100%') }}"
   when: target_group is not defined or target_group == 'worker'
 
 - name: Remind to keep the inventory in step

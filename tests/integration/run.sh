@@ -453,7 +453,7 @@ ec_shards() {
     echo "  volume $vid is erasure coded; deleting $file on $alias"
     docker exec "swfs-test-node0$n" rm -f "$file"
     out=$(ansible-playbook "$COLLECTION.rolling_update" "${EXTRA_VARS[@]}" -e seaweed_version=test-b -e target_group=volume \
-        -e volume_ec_settle_seconds=5 --limit "$alias" 2>&1) \
+        -e volume_ec_log_quiet_seconds=5 --limit "$alias" 2>&1) \
         || { tail -20 <<<"$out" >&2; fail "the upgrade stopped although the server came back" || return 1; }
     grep -q "$alias: the master lists .* EC shards" <<<"$out" || { tail -20 <<<"$out" >&2; fail "the EC shard count was not reported" || return 1; }
     echo "  OK a server that lost a shard comes back and the run reports the count"

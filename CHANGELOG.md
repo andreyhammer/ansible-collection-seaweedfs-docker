@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- The wait for the EC shards after a volume server start no longer polls the shard count at the master. That count keeps
+  changing while the EC and balance workers add, move and remove shards, so the wait ran up to the timeout (25 minutes
+  on a server with 35 000 shards while the workers were running). It now ends when the container log has been quiet
+  for `volume_ec_log_quiet_seconds` (15, checked every `volume_ec_log_poll_seconds`, 5): the server loads its EC volumes
+  and sends them to the master in one wave, about a minute after the start. The master must also list some shards of
+  the server. A log without any registration line is waited for `volume_ec_log_grace_seconds` (120), then only the
+  master check is left. `volume_ec_settle_seconds` is removed.
+- `rolling_update` upgrades the workers at the same time instead of one by one: they hold no data, and one by one took
+  about a minute each (20 minutes for 21 workers). `-e rolling_update_worker_serial=1` (or a number or a percentage)
+  restores the old pace. Masters, filers, the admin server and the volume servers still go one at a time.
 - `rolling_update` checks the secrets before it changes anything: an empty admin password when
   `admin_require_password` is set, and an empty key in any `[jwt.filer_signing]` section of the config files
   (`*_config_files`) of the hosts in the run. A missing secret used to stop the run only when it reached the admin

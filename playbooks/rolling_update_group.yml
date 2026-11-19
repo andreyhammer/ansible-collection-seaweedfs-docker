@@ -58,7 +58,7 @@
 
 - name: Rolling update
   hosts: "seaweed_upgrade_order_{{ rolling_group | default('volume') }}"
-  serial: 1
+  serial: "{{ rolling_serial | default(1) }}"
   vars:
     rolling_update_force: false
   max_fail_percentage: 0

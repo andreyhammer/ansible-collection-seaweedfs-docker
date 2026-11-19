@@ -57,10 +57,10 @@ To check the result of each group before starting the next one, run one group at
 | `filer` | one filer at a time | the filer and S3 ports answer; a test upload and download work |
 | `admin` | the admin server | the admin UI opens and lists all workers |
 | `volume` | before the first server is touched, every data and index directory is read and checked for files the container user cannot use (a disk that does not answer, or foreign files, stop the run); then per server: maintenance mode on, upgrade, wait for the port, the registration and the EC shards, maintenance mode off, next server | the master lists every volume server; no volume is read-only that was not before |
-| `worker` | one worker at a time | the workers reconnect to the admin server |
+| `worker` | all workers at the same time (they hold no data); `-e rolling_update_worker_serial=1` goes one by one, a number or a percentage sets the batch size | the workers reconnect to the admin server |
 
 The volume group is the slow one: each server waits until the master lists its EC shards again
-(`volume_ec_register_timeout`, `volume_ec_settle_seconds`) before the next one is touched. Do not interrupt it.
+(`volume_ec_register_timeout`, `volume_ec_log_quiet_seconds`) before the next one is touched. Do not interrupt it.
 
 **4. If a run fails**
 
@@ -98,10 +98,11 @@ set `seaweed_allow_downgrade: true` for a rollback you have tested on a copy of 
   `volumeServer.state -nodes <ip:port> -maintenanceOff` in `weed shell`. Both the stop and the recovery are covered
   by the integration tests.
 - Each step waits for the node to be back in the cluster before moving on. For a volume server that also means its
-  erasure coding shards: after the restart the role waits until the master has stopped listing more EC shards for the server (the
-  number is not zero and did not change for `volume_ec_settle_seconds`, 60 s). The shards are registered by the
-  server's heartbeat, which can come minutes after the server itself appears. The number before the restart is not the
-  target, because the cluster moves and expires shards while the server is down. If the registration is not over within
+  erasure coding shards: after the restart the role waits until the server's log has been quiet for
+  `volume_ec_log_quiet_seconds` (15 s): the server loads its EC volumes and sends them to the master in one wave,
+  which takes about a minute. The count the master lists is not used as the sign, because it keeps changing while the
+  EC and balance workers add, move and remove shards; the role only requires that the master lists some shards of the
+  server. If the registration is not over within
   `volume_ec_register_timeout` (300 s) the update stops before the next server is touched, so two servers holding
   shards of the same EC volume are never down at once. The server stays in maintenance mode, as after any other
   failure. Covered by an integration test (a server that lost a shard still comes back and the run reports the lower number).

@@ -213,9 +213,11 @@ and `volume_disk_type`.
 | `volume_container_uid` / `_gid` | `1000` / `1000` | Owner of the data and index directories on the host, matching the image's `seaweed` user |
 | `volume_check_ownership` | `true` | Before starting, fail if a data or index dir holds files not owned by the container user (skipped when `volume_entrypoint` is set) |
 | `volume_fix_ownership` | `false` | Recursively chown such files instead of failing; can take long on full disks |
-| `volume_ec_check` | `true` | After every start, wait until the server has registered its EC shards with the master: the number the master lists is not zero and has not changed for `volume_ec_settle_seconds`. Skipped for a server that had no EC shards |
+| `volume_ec_check` | `true` | After every start, wait until the server has registered its EC shards with the master: its log has been quiet for `volume_ec_log_quiet_seconds` and the master lists some of its shards. Skipped for a server that had no EC shards |
 | `volume_ec_register_timeout` | `300` | Seconds to wait for that; the run fails after that. Raise it for servers with tens of thousands of shards |
-| `volume_ec_settle_seconds` | `60` | How long the count must stay unchanged |
+| `volume_ec_log_quiet_seconds` | `15` | How long the container log must show no EC shard registration line |
+| `volume_ec_log_poll_seconds` | `5` | How often the log is looked at |
+| `volume_ec_log_grace_seconds` | `120` | How long to wait for the first registration line (it came 34 s after the start on a server with 35 000 shards). A log with none (another SeaweedFS version) is left after that, and only the master check remains |
 | `volume_preflight_timeout` | `30` | Seconds each data or index directory may take to answer the check that `rolling_update` and `volume_rolling_restart` run on every volume server before touching the first one |
 
 `volume_rolling_restart` (restart without an upgrade) uses the same variables: each server is put in maintenance mode,

@@ -1,7 +1,7 @@
 ---
 # Restarts the volume servers one at a time, each in maintenance mode, and stops at the first failure. The
 # containers are restarted, not recreated, so no configuration or image changes. A server counts as done when the
-# master lists it again and has stopped listing more of its EC shards (volume_ec_check, default true).
+# master lists it again and its log shows that the EC shards are registered (volume_ec_check, default true).
 # Usage: ansible-playbook andreyhammer.seaweedfs_docker.volume_rolling_restart [--limit volume01-dg01]
 # Nothing has been changed yet, so a disk that does not answer stops the run before the first server is restarted.
 - name: Check the volume servers before touching any of them

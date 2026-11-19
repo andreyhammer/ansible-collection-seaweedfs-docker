@@ -21,30 +21,72 @@
 - name: Wait until the EC shards are registered again
   when: not ansible_check_mode and volume_ec_check | bool and volume_ec_shards_before | int > 0
   block:
-    - name: Start waiting for the EC shard registration
-      ansible.builtin.set_fact:
-        volume_ec_settled: false
-        volume_ec_shards_prev: -1
-        volume_ec_round: 0
-        volume_ec_max_rounds: >-
-          {{ ((volume_ec_register_timeout | int) / (volume_ec_settle_seconds | int)) | round(0, 'ceil') | int + 1 }}
-
-    # The server registers its shards with the heartbeat after the start, which can take minutes with tens of thousands
-    # of them. The count is compared with the previous round, not with the number before the start: shards are also
-    # moved and deleted (TTL) by the cluster while the server is down. Rounds repeat until the count settles.
-    - name: Wait until the master stops listing more EC shards
-      ansible.builtin.include_tasks: ec_settle.yml
+    # After a start the server loads its EC volumes and sends them to the master in one wave (tens of thousands of
+    # log lines in about a minute); it is done when no such line has come for volume_ec_log_quiet_seconds. The shard
+    # count at the master is no sign of that: it keeps changing while the EC and balance workers add, move and remove
+    # shards, and old shard files on the disks are not counted at all. The log is read once, as a stream, from the
+    # start of the container. The first line is given volume_ec_log_grace_seconds (it comes tens of seconds after the
+    # start); a log without any such line (another SeaweedFS version) leaves only the master count below as the check.
+    # The stream is a coprocess so that it can be stopped as soon as the wait is over, and it ends by itself after
+    # volume_ec_register_timeout.
+    - name: Wait until the server has stopped logging EC shard registration
+      ansible.builtin.shell:
+        executable: /bin/bash
+        cmd: |
+          set -u
+          c={{ volume_container_name }}
+          since=$(docker inspect --format '{% raw %}{{.State.StartedAt}}{% endraw %}' "$c")
+          coproc LOGS { exec timeout {{ volume_ec_register_timeout }} docker logs --follow --since "$since" "$c" 2>&1; }
+          trap 'kill "$LOGS_PID" 2>/dev/null' EXIT
+          start=$SECONDS
+          last=-1
+          n=0
+          while :; do
+            if read -r -t 1 -u "${LOGS[0]}" line; then
+              case $line in
+                *'adds ec shards to'* | *store_ec_reconcile.go* | *store_ec_mirror.go*) last=$SECONDS; n=$((n + 1)) ;;
+              esac
+            elif [ $? -le 128 ]; then
+              echo "the log ended after $((SECONDS - start)) s"
+              exit 1
+            fi
+            if [ "$last" -ge 0 ]; then
+              if [ $((SECONDS - last)) -ge {{ volume_ec_log_quiet_seconds }} ]; then
+                echo "quiet for {{ volume_ec_log_quiet_seconds }} s after $n registration lines," \
+                  "$((SECONDS - start)) s into the wait"
+                exit 0
+              fi
+            elif [ $((SECONDS - start)) -ge {{ volume_ec_log_grace_seconds }} ]; then
+              echo "no EC registration lines in the log"
+              exit 0
+            fi
+          done
+      register: volume_ec_log_wait
+      changed_when: false
+      failed_when: false
+      become: true
 
     - name: Fail when the EC shards are still being registered
       ansible.builtin.fail:
         msg: >-
           {{ inventory_hostname }} had {{ volume_ec_shards_before }} EC shards registered before the start; after
-          {{ volume_ec_register_timeout }} s the master lists {{ volume_ec_shards_now }} and the number is still
-          changing or is zero. Not continuing: check the volume server log before touching another server.
-      when: not volume_ec_settled | bool
+          {{ volume_ec_register_timeout }} s the server is still logging EC shard registration. Not continuing: check
+          the volume server log before touching another server ({{ volume_ec_log_wait.stdout | default('') }}).
+      when: volume_ec_log_wait.rc != 0
+
+    - name: Read the EC shard count the master has now
+      ansible.builtin.include_tasks: ec_shards.yml
+
+    - name: Fail when the master lists no EC shards of the server
+      ansible.builtin.fail:
+        msg: >-
+          {{ inventory_hostname }} had {{ volume_ec_shards_before }} EC shards registered before the start, but the
+          master lists none after the registration ({{ volume_ec_log_wait.stdout | default('') }}). Not continuing:
+          check the volume server log before touching another server.
+      when: volume_ec_shards_now | int == 0
 
     - name: Report the EC shards
       ansible.builtin.debug:
         msg: >-
           {{ inventory_hostname }}: the master lists {{ volume_ec_shards_now }} EC shards
-          ({{ volume_ec_shards_before }} before the start).
+          ({{ volume_ec_shards_before }} before the start; {{ volume_ec_log_wait.stdout | default('') }}).

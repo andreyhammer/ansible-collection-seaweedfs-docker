@@ -38,12 +38,15 @@ volume_container_gid: 1000
 volume_check_ownership: true
 # Instead of refusing, recursively chown them. Can take long on full disks; a one-off migration aid.
 volume_fix_ownership: false
-# After every start, wait until the server has registered its EC shards with the master (heartbeat registration): the
-# number the master lists is not zero and did not change for volume_ec_settle_seconds. Gives up after
-# volume_ec_register_timeout seconds.
+# After every start, wait until the server has registered its EC shards with the master (heartbeat registration): its
+# log has been quiet for volume_ec_log_quiet_seconds (checked every volume_ec_log_poll_seconds) and the master lists
+# some of its shards. Gives up after volume_ec_register_timeout seconds; a log without any registration line is waited
+# for volume_ec_log_grace_seconds.
 volume_ec_check: true
 volume_ec_register_timeout: 300
-volume_ec_settle_seconds: 60
+volume_ec_log_quiet_seconds: 15
+volume_ec_log_poll_seconds: 5
+volume_ec_log_grace_seconds: 120
 # Seconds the pre-flight check of a rolling update waits for a data or index directory to answer.
 volume_preflight_timeout: 30
 volume_rack: ""
