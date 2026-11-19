@@ -4,6 +4,24 @@
 # that order and the run stops at the first failure; with target_group only that group is upgraded.
 # An instance whose container already runs the requested image is left alone
 # (-e rolling_update_force=true to go through it).
+# Nothing has been changed yet, so a missing secret stops the run before the first container is touched.
+- name: Check the secrets before touching any server
+  hosts: "{{ target_group | default('seaweed') }}"
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  tasks:
+    - name: Check the admin password
+      ansible.builtin.include_role:
+        name: andreyhammer.seaweedfs_docker.admin
+        tasks_from: secrets_preflight
+      when: "'admin' in group_names"
+
+    - name: Check the filer signing key
+      ansible.builtin.include_role:
+        name: andreyhammer.seaweedfs_docker.common
+        tasks_from: secrets_preflight
+
 - name: Upgrade the masters
   ansible.builtin.import_playbook: rolling_update_group.yml
   vars:

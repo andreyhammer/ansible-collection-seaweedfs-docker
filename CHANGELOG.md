@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `rolling_update` checks the secrets before it changes anything: an empty admin password when
+  `admin_require_password` is set, and an empty key in any `[jwt.filer_signing]` section of the config files
+  (`*_config_files`) of the hosts in the run. A missing secret used to stop the run only when it reached the admin
+  server, after the masters and filers were already upgraded. The check prints no secret; the message names the
+  variable to export.
+
 ## 0.1.10 (2026-11-19)
 
 - `rolling_update` without `target_group` upgrades every group in one run, in the documented order (master with the

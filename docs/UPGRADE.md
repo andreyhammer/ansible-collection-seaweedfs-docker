@@ -17,7 +17,9 @@ Everything below runs from the control node. `<new>` is the release you are movi
   seaweedfs/seaweedfs). Look for changed flags, changed defaults and anything that changes what the EC, vacuum or
   balance workers do on their own after the restart.
 - Make sure the collection on the control node is the version you intend to use and that the secrets are exported
-  exactly as for `site` (`SEAWEED_ADMIN_PASSWORD` and so on; see `docs/INSTALL.md`).
+  exactly as for `site` (`SEAWEED_ADMIN_PASSWORD` and so on; see `docs/INSTALL.md`). The rolling update checks them
+  before it touches any server: an empty admin password (with `admin_require_password`) or an empty
+  `jwt.filer_signing` key in a config file stops the run with nothing changed.
 - Check the cluster before touching it: every master and volume server is listed (the master UI, or `cluster.check`
   in `weed shell`), no server is already in maintenance mode, and the EC and replication jobs in the admin UI are not
   failing. An upgrade of a cluster that is already unhealthy makes it harder to tell what the upgrade broke.
