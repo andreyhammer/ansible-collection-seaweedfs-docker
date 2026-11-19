@@ -99,8 +99,8 @@ ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.site
 
 | Task | Command |
 |---|---|
-| Upgrade volumes | `ansible-playbook andreyhammer.seaweedfs_docker.rolling_update -e seaweed_version=4.49` |
-| Upgrade masters (leader last) | `... rolling_update -e seaweed_version=4.49 -e target_group=master` |
+| Upgrade everything (master with the leader last, filer, admin, volume, worker) | `ansible-playbook andreyhammer.seaweedfs_docker.rolling_update -e seaweed_version=4.49` |
+| Upgrade one group | `... rolling_update -e seaweed_version=4.49 -e target_group=master` |
 | Restart volume servers one at a time | `ansible-playbook andreyhammer.seaweedfs_docker.volume_rolling_restart [--limit volume01-dg01]` |
 | After an upgrade | `rolling_update` takes the version from `-e`, not from the inventory. It ends with a reminder to set `seaweed_version` in the inventory |
 | Remove masters (in pairs) | `ansible-playbook andreyhammer.seaweedfs_docker.remove_masters -e target_masters=master04,master05` (see `docs/INSTALL.md`) |

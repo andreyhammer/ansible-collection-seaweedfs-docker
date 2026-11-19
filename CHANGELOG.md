@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `rolling_update` without `target_group` upgrades every group in one run, in the documented order (master with the
+  leader last, filer, admin, volume, worker) and stops at the first failure. It used to upgrade only the `volume`
+  group, so a full upgrade needed five runs. `-e target_group=<group>` still upgrades a single group. The play of one
+  group moved to `playbooks/rolling_update_group.yml`, which `rolling_update` imports once per group; it is not meant
+  to be run on its own.
+
 ## 0.1.9 (2026-11-11)
 
 - No functional change to the roles apart from one task name: the maintenance mode task is now called

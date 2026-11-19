@@ -36,16 +36,18 @@ Expect only the image tag to differ. Any other difference means the inventory an
 apart: find out why before going on. `seaweed_large_disk` must be the same as for the running containers; the run
 stops before changing anything if it is not.
 
-**3. Upgrade, one group per run**
+**3. Upgrade**
 
-Order: `master`, `filer`, `admin`, `volume`, `worker`. Check the result of each group before starting the next one.
+One run upgrades every group in this order: `master` (the leader last), `filer`, `admin`, `volume`, `worker`. It stops
+at the first failure and nothing after the failed instance is touched.
 
 ```bash
 ansible-playbook -i <inventory> andreyhammer.seaweedfs_docker.rolling_update \
-  -e seaweed_version=<new> -e target_group=master
+  -e seaweed_version=<new>
 ```
 
-Repeat with `-e target_group=filer`, `admin`, `volume` and `worker`. What to look at:
+To check the result of each group before starting the next one, run one group at a time with
+`-e target_group=master`, then `filer`, `admin`, `volume` and `worker`. What to look at after each group:
 
 | Group | What the run does | What to check afterwards |
 |---|---|---|

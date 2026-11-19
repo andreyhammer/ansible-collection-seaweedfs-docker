@@ -1,0 +1,119 @@
+---
+# One group of the rolling update; imported once per group by rolling_update.yml, not meant to be run on its own.
+# An instance whose container already runs the requested image is left alone
+# (-e rolling_update_force=true to go through it).
+- name: Build the upgrade order
+  hosts: "{{ rolling_group }}"
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Record the cluster address of every host
+      ansible.builtin.set_fact:
+        seaweed_node_ip: "{{ seaweed_ip | default(ansible_host, true) }}"
+      when: rolling_group == 'master'
+
+    - name: Find the current master leader
+      ansible.builtin.uri:
+        url: "http://{{ masters_list | first }}/cluster/status"
+        return_content: true
+      register: rolling_cluster_status
+      run_once: true
+      # From a master host, not from the control node: the cluster network is not always reachable from there.
+      delegate_to: "{{ ansible_play_hosts_all | first }}"
+      when: rolling_group == 'master'
+
+    - name: Resolve the leader alias
+      ansible.builtin.set_fact:
+        rolling_leader_aliases: >-
+          {{ dict(ansible_play_hosts_all | zip(ansible_play_hosts_all | map('extract', hostvars, 'seaweed_node_ip')))
+             | dict2items
+             | selectattr('value', 'equalto', (rolling_cluster_status.json.Leader | default('')).split(':') | first)
+             | map(attribute='key') | list }}
+      run_once: true
+      delegate_to: localhost
+      when: rolling_group == 'master'
+
+    - name: Build the ordered host group (leader last)
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups: "seaweed_upgrade_order_{{ rolling_group }}"
+      loop: >-
+        {{ ansible_play_hosts_all | reject('in', rolling_leader_aliases | default([])) | list
+           + (rolling_leader_aliases | default([])) }}
+      run_once: true
+      delegate_to: localhost
+
+# Nothing has been changed yet, so a disk that does not answer stops the run before the first server is restarted.
+- name: Check the volume servers before touching any of them
+  hosts: "seaweed_upgrade_order_{{ rolling_group }}"
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  tasks:
+    - name: Read the data and index directories
+      ansible.builtin.include_role:
+        name: andreyhammer.seaweedfs_docker.volume
+        tasks_from: preflight
+      when: "'volume' in group_names"
+
+- name: Rolling update
+  hosts: "seaweed_upgrade_order_{{ rolling_group }}"
+  serial: 1
+  vars:
+    rolling_update_force: false
+  max_fail_percentage: 0
+  gather_facts: true
+  become: true
+  tasks:
+    - name: Upgrade one instance
+      block:
+        - name: Check whether the instance already runs the requested image
+          ansible.builtin.include_role:
+            name: "andreyhammer.seaweedfs_docker.{{ item }}"
+            tasks_from: image_current
+          loop: "{{ ['master', 'filer', 'admin', 'volume', 'worker'] | select('in', group_names) | list }}"
+
+        - name: Skip the instance that is already up to date
+          ansible.builtin.debug:
+            msg: >-
+              {{ inventory_hostname }} already runs SeaweedFS {{ seaweed_version }}; nothing to do
+              (rolling_update_force=true to go through it anyway).
+          when: seaweed_image_current | bool and not rolling_update_force | bool
+
+        - name: Maintenance mode on (volume only)
+          ansible.builtin.include_role:
+            name: andreyhammer.seaweedfs_docker.volume
+            tasks_from: maintenance
+          vars:
+            volume_maintenance: true
+          when: "'volume' in group_names and (not seaweed_image_current | bool or rolling_update_force | bool)"
+
+        - name: Deploy the new version
+          ansible.builtin.include_role:
+            name: "andreyhammer.seaweedfs_docker.{{ item }}"
+          loop: "{{ ['master', 'filer', 'admin', 'volume', 'worker'] | select('in', group_names) | list }}"
+          when: not seaweed_image_current | bool or rolling_update_force | bool
+
+        - name: Maintenance mode off (volume only)
+          ansible.builtin.include_role:
+            name: andreyhammer.seaweedfs_docker.volume
+            tasks_from: maintenance
+          vars:
+            volume_maintenance: false
+          when: "'volume' in group_names and (not seaweed_image_current | bool or rolling_update_force | bool)"
+      rescue:
+        - name: Stop the rolling update
+          ansible.builtin.fail:
+            msg: >-
+              Upgrade of {{ inventory_hostname }} failed; the rolling update is stopped.
+              Reason: {{ ansible_failed_result.msg | default('unknown') }}
+              {{ ('(' ~ rolling_failed_items | join('; ') ~ ')') if rolling_failed_items | length > 0 else '' }}
+              {{ 'The volume server may still be in maintenance mode. Re-run the update, or run in weed shell:'
+                 ~ ' volumeServer.state -nodes ' ~ (seaweed_ip | default(ansible_host, true))
+                 ~ ':' ~ (8080 + (volume_dg | int))
+                 ~ ' -maintenanceOff'
+                 if 'volume' in group_names else '' }}
+          vars:
+            rolling_failed_items: >-
+              {{ (ansible_failed_result.results | default([])) | selectattr('failed', 'defined') | selectattr('failed')
+                 | selectattr('msg', 'defined') | map(attribute='msg') | list }}

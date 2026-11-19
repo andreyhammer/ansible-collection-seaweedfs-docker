@@ -228,10 +228,8 @@ added **in pairs** (3 to 5). The roles reject an even `masters_list` before touc
    already deployed; the leader is restarted last:
 
    ```bash
-   for group in master filer admin volume worker; do
-     ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.rolling_update \
-       -e seaweed_version=<current version> -e target_group=$group
-   done
+   ansible-playbook -i examples/inventory andreyhammer.seaweedfs_docker.rolling_update \
+     -e seaweed_version=<current version>
    ```
 5. Run `site` once more: it must report no changes.
 
