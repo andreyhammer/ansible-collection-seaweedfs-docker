@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.10 (2026-11-19)
 
 - `rolling_update` without `target_group` upgrades every group in one run, in the documented order (master with the
   leader last, filer, admin, volume, worker) and stops at the first failure. It used to upgrade only the `volume`
