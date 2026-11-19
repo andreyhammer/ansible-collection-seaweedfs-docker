@@ -33,7 +33,7 @@
       ansible.builtin.shell:
         executable: /bin/bash
         cmd: |
-          set -u
+          set -u -o pipefail
           c={{ volume_container_name }}
           since=$(docker inspect --format '{% raw %}{{.State.StartedAt}}{% endraw %}' "$c")
           coproc LOGS { exec timeout {{ volume_ec_register_timeout }} docker logs --follow --since "$since" "$c" 2>&1; }
